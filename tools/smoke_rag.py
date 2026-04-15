@@ -16,7 +16,7 @@ def main() -> None:
     print(json.dumps(health_resp.model_dump(), ensure_ascii=False, indent=2))
 
     query_resp = service.process(
-        QueryRequest(query='2026年陕西电力市场中长期交易流程是什么？', session_id='smoke:local', top_k=5)
+        QueryRequest(query='陕西电力市场中长期交易流程是什么？', session_id='smoke:local', top_k=5)
     )
     print('\n[query]')
     print(
