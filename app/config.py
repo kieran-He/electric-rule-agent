@@ -14,6 +14,7 @@ class Settings:
     app_name: str = os.getenv("APP_NAME", "feishu-power-policy-bot")
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("PORT", "8000"))
+    ingest_enabled: bool = os.getenv("INGEST_ENABLED", "false").lower() == "true"
     chroma_path: str = os.getenv("CHROMA_PATH", "./data/chroma")
     docs_root: str = os.getenv("DOCS_ROOT", "./data/docs")
     embedding_model: str = os.getenv(
@@ -24,6 +25,7 @@ class Settings:
         "GLM_ENDPOINT", "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     )
     glm_model: str = os.getenv("GLM_MODEL", "glm-4.5")
+    glm_timeout_seconds: int = int(os.getenv("GLM_TIMEOUT_SECONDS", "60"))
     feishu_token: str = os.getenv("FEISHU_VERIFICATION_TOKEN", "")
     feishu_signing_secret: str = os.getenv("FEISHU_SIGNING_SECRET", "")
     feishu_app_id: str = os.getenv("FEISHU_APP_ID", "")

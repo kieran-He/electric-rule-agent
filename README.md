@@ -7,6 +7,7 @@ FastAPI service for a Feishu bot that supports:
 - Multi-province comparison retrieval
 - Automatic province detection with low-confidence confirmation flow
 - Feishu webhook verification (token + signature) and event deduplication
+- Offline ingestion + online query-only operation mode
 
 ## Quick Start
 
@@ -22,7 +23,13 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-3. Start API:
+3. Offline ingest docs (recommended for production):
+
+```bash
+python tools/offline_ingest.py --kb-scope province --province-code SN --dedupe true --rebuild false
+```
+
+4. Start API (query-only by default):
 
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -30,8 +37,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## APIs
 
-- `GET /admin/health`: service health.
-- `POST /admin/ingest`: ingest docs into `province` or `global` KB.
+- `GET /admin/health`: service health + runtime mode.
+- `POST /admin/ingest`: ingest docs into KB (disabled by default; returns 403 when `INGEST_ENABLED=false`).
 - `POST /query`: internal query endpoint.
 - `POST /feishu/webhook`: Feishu callback endpoint.
 
@@ -47,49 +54,24 @@ data/docs/
     ... guangdong policy files
 ```
 
-## Ingest Examples
+## Offline Ingest Examples
 
 Province KB (auto resolve path from docs root):
 
-```json
-{
-  "kb_scope": "province",
-  "province_code": "SN",
-  "rebuild": true,
-  "dedupe": true,
-  "cleaning_profile": "robust",
-  "enable_ocr": false
-}
+```bash
+python tools/offline_ingest.py --kb-scope province --province-code SN --dedupe true --rebuild true
 ```
 
 Global KB (auto resolve path from docs root):
 
-```json
-{
-  "kb_scope": "global",
-  "rebuild": true,
-  "dedupe": true
-}
+```bash
+python tools/offline_ingest.py --kb-scope global --dedupe true --rebuild true
 ```
 
 Explicit path override:
 
-```json
-{
-  "docs_path": "E:/policies/shaanxi",
-  "kb_scope": "province",
-  "province_code": "SN",
-  "rebuild": true,
-  "enable_ocr": true
-}
-
-Example ingest response fields:
-
-- `resolved_docs_path`
-- `files_new`
-- `files_updated`
-- `files_skipped`
-- `ocr_pages_processed`
+```bash
+python tools/offline_ingest.py --kb-scope province --province-code SN --docs-path E:/policies/shaanxi --rebuild true --enable-ocr true
 ```
 
 ## Query Example
@@ -104,6 +86,8 @@ Example ingest response fields:
 
 ## Notes
 
+- `INGEST_ENABLED=false` means online mode is query-only; use `tools/offline_ingest.py` for data refresh.
+- `CHROMA_PATH` is the online read path. Keep offline ingest output in the same path (or switch via snapshot promotion).
 - The ingestion pipeline uses robust cleaning and quality checks. OCR fallback can be enabled by request (`enable_ocr`) or environment (`OCR_ENABLED=true`).
 - OCR fallback depends on local Tesseract installation and language pack (`chi_sim+eng`).
 - Windows OCR quick config:

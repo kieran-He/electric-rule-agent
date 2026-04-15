@@ -1,4 +1,5 @@
 import time
+import json
 from typing import Optional
 
 import requests
@@ -45,7 +46,7 @@ class FeishuClient:
             json={
                 "receive_id": chat_id,
                 "msg_type": "text",
-                "content": f'{{"text":"{text}"}}',
+                "content": json.dumps({"text": text}, ensure_ascii=False),
             },
             timeout=15,
         )
@@ -53,4 +54,3 @@ class FeishuClient:
             return False
         payload = resp.json()
         return payload.get("code") == 0
-

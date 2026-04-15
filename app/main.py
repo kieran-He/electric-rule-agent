@@ -20,7 +20,10 @@ repository = ChromaPolicyRepository(
     persist_directory=settings.chroma_path, embedding_model_name=settings.embedding_model
 )
 generator = GLMClient(
-    api_key=settings.glm_api_key, endpoint=settings.glm_endpoint, model=settings.glm_model
+    api_key=settings.glm_api_key,
+    endpoint=settings.glm_endpoint,
+    model=settings.glm_model,
+    timeout_seconds=settings.glm_timeout_seconds,
 )
 service = PolicyQueryService(
     repository=repository,
@@ -52,27 +55,43 @@ def format_response_text(resp: QueryResponse) -> str:
 
 @app.get("/admin/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+    mode_state = (
+        f"ingest_enabled={settings.ingest_enabled}, chroma_path={settings.chroma_path}"
+    )
+    llm_state = (
+        f"llm mode={generator.mode}, model={settings.glm_model}"
+        if generator.ready
+        else "llm mode=fallback (GLM_API_KEY is empty)"
+    )
+    retrieval_state = f"retrieval embedder={repository.embedder_name}"
     if repository.ready:
         return HealthResponse(
             status="ok",
             vector_store_ready=True,
             glm_ready=generator.ready,
-            message="service is ready",
+            message=f"service is ready; {mode_state}; {retrieval_state}; {llm_state}",
         )
     return HealthResponse(
         status="degraded",
         vector_store_ready=False,
         glm_ready=generator.ready,
-        message=f"vector store init failed: {repository.init_error}",
+        message=f"vector store init failed: {repository.init_error}; {mode_state}; {retrieval_state}; {llm_state}",
     )
 
 
 @app.post("/admin/ingest", response_model=IngestResponse)
 def ingest(req: IngestRequest) -> IngestResponse:
+    if not settings.ingest_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="ingest endpoint is disabled in online mode; please run offline ingestion script",
+        )
     if req.kb_scope.value == "province" and not req.province_code:
         raise HTTPException(status_code=400, detail="province_code is required when kb_scope=province")
     if req.cleaning_profile != "robust":
         raise HTTPException(status_code=400, detail="only cleaning_profile=robust is supported currently")
+    if req.chunk_overlap >= req.chunk_size:
+        raise HTTPException(status_code=400, detail="chunk_overlap must be smaller than chunk_size")
     resolved_docs_path = resolve_docs_path(
         kb_scope=req.kb_scope.value,
         province_code=req.province_code,
@@ -122,6 +141,8 @@ def ingest(req: IngestRequest) -> IngestResponse:
 def query(req: QueryRequest) -> QueryResponse:
     try:
         return service.process(req)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RepositoryError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

@@ -21,7 +21,7 @@ class QueryRequest(BaseModel):
     session_id: str = Field(min_length=1)
     mode: QueryMode = QueryMode.auto
     province_codes: Optional[List[str]] = None
-    top_k: Optional[int] = None
+    top_k: Optional[int] = Field(default=None, ge=1, le=20)
 
 
 class Citation(BaseModel):
@@ -54,8 +54,8 @@ class IngestRequest(BaseModel):
     dedupe: bool = True
     enable_ocr: Optional[bool] = None
     cleaning_profile: str = "robust"
-    chunk_size: int = 800
-    chunk_overlap: int = 120
+    chunk_size: int = Field(default=800, ge=100, le=4000)
+    chunk_overlap: int = Field(default=120, ge=0, le=1000)
 
 
 class IngestResponse(BaseModel):

@@ -1,3 +1,5 @@
+import hashlib
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -15,6 +17,31 @@ class RepositoryError(RuntimeError):
     pass
 
 
+class DeterministicEmbedder:
+    def __init__(self, dimension: int = 384):
+        self.dimension = dimension
+
+    def encode(self, texts: List[str], normalize_embeddings: bool = True) -> List[List[float]]:
+        vectors: List[List[float]] = []
+        for text in texts:
+            vec = [0.0] * self.dimension
+            for token in text.split():
+                digest = hashlib.sha256(token.encode("utf-8")).digest()
+                idx = int.from_bytes(digest[:4], byteorder="little", signed=False) % self.dimension
+                vec[idx] += 1.0
+            if not any(vec) and text:
+                for ch in text:
+                    digest = hashlib.md5(ch.encode("utf-8")).digest()
+                    idx = int.from_bytes(digest[:2], byteorder="little", signed=False) % self.dimension
+                    vec[idx] += 1.0
+            if normalize_embeddings:
+                norm = math.sqrt(sum(v * v for v in vec))
+                if norm > 0:
+                    vec = [v / norm for v in vec]
+            vectors.append(vec)
+        return vectors
+
+
 class ChromaPolicyRepository:
     def __init__(self, persist_directory: str, embedding_model_name: str):
         self._ready = False
@@ -22,17 +49,35 @@ class ChromaPolicyRepository:
         self._embedder = None
         self._persist_directory = Path(persist_directory)
         self._embedding_model_name = embedding_model_name
+        self._embedder_name = embedding_model_name
 
         try:
             import chromadb
-            from sentence_transformers import SentenceTransformer
 
             self._persist_directory.mkdir(parents=True, exist_ok=True)
             self._client = chromadb.PersistentClient(path=str(self._persist_directory))
-            self._embedder = SentenceTransformer(self._embedding_model_name)
-            self._ready = True
         except Exception as exc:  # pragma: no cover - depends on runtime env
             self._init_error = str(exc)
+            return
+
+        if self._embedding_model_name.lower() in {
+            "deterministic",
+            "deterministic-fallback",
+            "fallback",
+        }:
+            self._embedder = DeterministicEmbedder()
+            self._embedder_name = "deterministic-fallback"
+            self._ready = True
+            return
+
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            self._embedder = SentenceTransformer(self._embedding_model_name)
+        except Exception:
+            self._embedder = DeterministicEmbedder()
+            self._embedder_name = "deterministic-fallback"
+        self._ready = True
 
     @property
     def ready(self) -> bool:
@@ -41,6 +86,10 @@ class ChromaPolicyRepository:
     @property
     def init_error(self) -> Optional[str]:
         return getattr(self, "_init_error", None)
+
+    @property
+    def embedder_name(self) -> str:
+        return self._embedder_name
 
     def _collection_name(self, kb_scope: str, province_code: Optional[str]) -> str:
         if kb_scope == "global":
@@ -58,7 +107,9 @@ class ChromaPolicyRepository:
         if not self._ready:
             raise RepositoryError(self.init_error or "repository not ready")
         vectors = self._embedder.encode(texts, normalize_embeddings=True)
-        return vectors.tolist()
+        if hasattr(vectors, "tolist"):
+            return vectors.tolist()
+        return vectors
 
     def ingest_chunks(
         self,

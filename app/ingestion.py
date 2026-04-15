@@ -281,6 +281,8 @@ class DocumentIngestor:
         root = Path(docs_path)
         if not root.exists():
             raise FileNotFoundError(f"docs_path not found: {docs_path}")
+        if not root.is_dir():
+            raise ValueError(f"docs_path must be a directory: {docs_path}")
         files = [f for f in root.rglob("*") if f.is_file() and f.suffix.lower() in SUPPORTED_SUFFIXES]
 
         stats = IngestStats(files_processed=len(files))
