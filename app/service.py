@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+﻿from typing import Dict, List, Optional, Tuple
 
 from app.config import settings
 from app.generator import GLMClient
@@ -78,15 +78,6 @@ class PolicyQueryService:
                 codes.append(code)
         return codes
 
-    def _need_confirm_province(self) -> QueryResponse:
-        return QueryResponse(
-            mode=QueryMode.single_province,
-            needs_confirmation=True,
-            confirmation_question="请先确认省份，例如：陕西、广东、山东。",
-            conclusion="当前问题未识别到可靠省份信息。",
-            follow_up="可直接回复省份名称，或在问题中补充“xx省”。",
-        )
-
     def _retrieve_province_global(
         self, query: str, province_code: str, top_k: int
     ) -> Tuple[List[PolicyChunk], List[PolicyChunk]]:
@@ -97,6 +88,16 @@ class PolicyQueryService:
             query=query, top_k=top_k, kb_scope="global", province_code=None
         )
         return province_chunks, global_chunks
+
+    def _ask_llm_for_guidance(self, query: str, hint: str, history: List[str], province_code: Optional[str]) -> str:
+        guided_query = f"{query}\n\n系统上下文：{hint}"
+        return self.generator.generate_answer(
+            query=guided_query,
+            provincial_chunks=[],
+            global_chunks=[],
+            history=history,
+            province_code=province_code,
+        )
 
     def process(self, req: QueryRequest) -> QueryResponse:
         state = self.sessions.get(req.session_id)
@@ -112,17 +113,40 @@ class PolicyQueryService:
                 provinces = [detector_output.province_code]
 
         if mode in (QueryMode.single_province, QueryMode.province_plus_global) and not provinces:
-            return self._need_confirm_province()
+            conclusion = self._ask_llm_for_guidance(
+                req.query,
+                "未识别到明确省份，请引导用户先确认省份后再回答具体规则。",
+                state.history,
+                None,
+            )
+            response = QueryResponse(
+                mode=QueryMode.single_province,
+                needs_confirmation=True,
+                confirmation_question="请先确认省份，例如：陕西、广东、山东。",
+                conclusion=conclusion,
+                follow_up="请补充省份后重试，例如：陕西中长期交易流程。",
+            )
+            self.sessions.append_turn(req.session_id, req.query, conclusion)
+            return response
 
         if mode == QueryMode.multi_province_compare:
             if len(provinces) < 2:
-                return QueryResponse(
+                conclusion = self._ask_llm_for_guidance(
+                    req.query,
+                    "当前跨省对比缺少足够省份，请引导用户至少提供两个省份。",
+                    state.history,
+                    None,
+                )
+                response = QueryResponse(
                     mode=mode,
                     needs_confirmation=True,
-                    confirmation_question="请明确至少两个省份后再进行对比，例如：比较陕西和广东的中长期交易规则。",
-                    conclusion="当前仅识别到一个或零个省份，无法执行横向对比。",
+                    confirmation_question="请至少提供两个省份后再进行对比，例如：比较陕西和广东中长期交易规则。",
+                    conclusion=conclusion,
                     follow_up="补充两个以上省份后，我会输出差异对比。",
                 )
+                self.sessions.append_turn(req.session_id, req.query, conclusion)
+                return response
+
             result_by_province: Dict[str, List[PolicyChunk]] = {}
             all_citations: List[Citation] = []
             for province in provinces:
@@ -131,27 +155,35 @@ class PolicyQueryService:
                 )
                 result_by_province[province] = chunks
                 all_citations.extend(_to_citations(chunks, default_province=province))
+
             conclusion = self.generator.generate_compare_answer(req.query, result_by_province)
             response = QueryResponse(
                 mode=mode,
                 conclusion=conclusion,
                 provincial_evidence=all_citations[: min(len(all_citations), 8)],
                 differences="以上为跨省检索结果摘要，实际执行请以各省最新规则原文为准。",
-                follow_up="可继续问：请按“准入条件/价格机制/结算周期”输出表格对比。",
+                follow_up="可继续问：请按准入条件、价格机制、结算周期输出表格对比。",
             )
             self.sessions.append_turn(req.session_id, req.query, conclusion)
             return response
 
         province = provinces[0]
         provincial_chunks, global_chunks = self._retrieve_province_global(req.query, province, top_k)
+
         if not provincial_chunks and mode == QueryMode.single_province:
+            answer = self._ask_llm_for_guidance(
+                req.query,
+                f"省份={province} 未检索到有效省级证据，请提示用户补充关键词。",
+                state.history,
+                province,
+            )
             response = QueryResponse(
                 mode=mode,
                 province_code=province,
-                conclusion="未在该省政策库检索到充分依据。",
+                conclusion=answer,
                 follow_up="请补充更具体关键词，例如交易类型、年份、结算方式。",
             )
-            self.sessions.append_turn(req.session_id, req.query, response.conclusion)
+            self.sessions.append_turn(req.session_id, req.query, answer)
             return response
 
         answer = self.generator.generate_answer(
@@ -161,6 +193,7 @@ class PolicyQueryService:
             history=state.history,
             province_code=province,
         )
+
         differences = None
         if mode == QueryMode.province_plus_global and provincial_chunks and global_chunks:
             differences = "如省级规则与通用规则冲突，已按省级口径优先解释。"
@@ -176,4 +209,3 @@ class PolicyQueryService:
         )
         self.sessions.append_turn(req.session_id, req.query, answer)
         return response
-

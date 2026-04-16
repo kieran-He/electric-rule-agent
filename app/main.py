@@ -4,7 +4,7 @@ from fastapi import FastAPI, Header, HTTPException, Request
 
 from app.config import settings
 from app.feishu import FeishuClient
-from app.generator import GLMClient
+from app.generator import GLMClient, LLMGenerationError
 from app.ingest_path import build_missing_path_hint, resolve_docs_path
 from app.ingestion import DocumentIngestor
 from app.province import ProvinceDetector
@@ -59,9 +59,9 @@ def health() -> HealthResponse:
         f"ingest_enabled={settings.ingest_enabled}, chroma_path={settings.chroma_path}"
     )
     llm_state = (
-        f"llm mode={generator.mode}, model={settings.glm_model}"
+        f"llm strict mode=enabled, ready=true, model={settings.glm_model}"
         if generator.ready
-        else "llm mode=fallback (GLM_API_KEY is empty)"
+        else "llm strict mode=enabled, ready=false (GLM_API_KEY is empty; /query will return 503)"
     )
     retrieval_state = f"retrieval embedder={repository.embedder_name}"
     if repository.ready:
@@ -141,6 +141,8 @@ def ingest(req: IngestRequest) -> IngestResponse:
 def query(req: QueryRequest) -> QueryResponse:
     try:
         return service.process(req)
+    except LLMGenerationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RepositoryError as exc:

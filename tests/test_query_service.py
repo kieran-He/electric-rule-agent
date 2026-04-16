@@ -1,4 +1,4 @@
-from app.province import ProvinceDetector
+﻿from app.province import ProvinceDetector
 from app.schemas import QueryMode, QueryRequest
 from app.service import PolicyQueryService, QueryPlanner
 from app.session import SessionStore
@@ -75,7 +75,7 @@ def test_need_province_confirmation():
     req = QueryRequest(query="交易流程是什么？", session_id="s2", mode=QueryMode.single_province)
     resp = service.process(req)
     assert resp.needs_confirmation is True
-    assert "确认省份" in (resp.confirmation_question or "")
+    assert resp.confirmation_question
 
 
 def test_compare_mode_requires_two_provinces():

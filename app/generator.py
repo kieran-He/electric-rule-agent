@@ -5,6 +5,11 @@ import requests
 from app.repository import PolicyChunk
 
 
+class LLMGenerationError(RuntimeError):
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
 class GLMClient:
     def __init__(self, api_key: str, endpoint: str, model: str, timeout_seconds: int = 60):
         self.api_key = api_key
@@ -18,10 +23,17 @@ class GLMClient:
 
     @property
     def mode(self) -> str:
-        return "llm" if self.ready else "fallback"
+        return "llm" if self.ready else "unavailable"
+
+    def _require_ready(self) -> None:
+        if not self.ready:
+            raise LLMGenerationError("llm unavailable: GLM_API_KEY is empty")
 
     def _build_context(self, chunks: List[PolicyChunk], title: str) -> str:
         lines = [title]
+        if not chunks:
+            lines.append("- none")
+            return "\n".join(lines)
         for idx, chunk in enumerate(chunks, start=1):
             source = chunk.metadata.get("source_name", "unknown")
             snippet = chunk.text[:260]
@@ -39,7 +51,6 @@ class GLMClient:
         prompt = (
             "你是电力政策问答助手。只能根据提供的证据回答，禁止编造。"
             "如果证据不足，明确说明“未检索到充分依据”。"
-            "输出要简洁并说明是否存在省级与通用规则差异。"
         )
         context = "\n\n".join(
             [
@@ -57,7 +68,27 @@ class GLMClient:
             "temperature": 0.1,
         }
 
+    def _build_compare_payload(self, query: str, result_by_province: dict) -> Dict[str, object]:
+        lines = [f"问题: {query}", "跨省检索证据:"]
+        for province, chunks in result_by_province.items():
+            lines.append(self._build_context(chunks, f"{province}证据"))
+        return {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "你是电力政策问答助手。请基于给定的跨省证据输出结论与差异点。"
+                        "没有证据时必须明确说明“未检索到充分依据”。"
+                    ),
+                },
+                {"role": "user", "content": "\n\n".join(lines)},
+            ],
+            "temperature": 0.1,
+        }
+
     def _call_llm(self, payload: Dict[str, object]) -> str:
+        self._require_ready()
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
         last_err: Exception | None = None
         for _ in range(2):
@@ -72,18 +103,27 @@ class GLMClient:
                 data = response.json()
                 choices = data.get("choices", [])
                 if not choices:
-                    raise ValueError("empty choices returned by model api")
+                    raise LLMGenerationError("empty model choices from upstream")
                 message = choices[0].get("message") or {}
                 content = str(message.get("content", "")).strip()
                 if not content:
-                    raise ValueError("empty content returned by model api")
+                    raise LLMGenerationError("empty model content from upstream")
                 return content
             except requests.ReadTimeout as exc:
                 last_err = exc
                 continue
+            except requests.HTTPError as exc:
+                status = exc.response.status_code if exc.response is not None else "unknown"
+                raise LLMGenerationError(f"upstream http error: status={status}") from exc
+            except requests.RequestException as exc:
+                raise LLMGenerationError(f"upstream request failed: {exc.__class__.__name__}") from exc
+            except (TypeError, ValueError, KeyError) as exc:
+                if isinstance(exc, LLMGenerationError):
+                    raise
+                raise LLMGenerationError("invalid model response payload") from exc
         if last_err is not None:
-            raise last_err
-        raise ValueError("model call failed without explicit exception")
+            raise LLMGenerationError("upstream timeout")
+        raise LLMGenerationError("model call failed without explicit exception")
 
     def generate_answer(
         self,
@@ -93,36 +133,11 @@ class GLMClient:
         history: List[str],
         province_code: Optional[str],
     ) -> str:
-        if not self.api_key:
-            return self._fallback_answer(query, provincial_chunks, global_chunks, province_code)
-
+        self._require_ready()
         payload = self._build_payload(query, provincial_chunks, global_chunks, history, province_code)
-        try:
-            return self._call_llm(payload)
-        except (requests.RequestException, ValueError, TypeError, KeyError):
-            return self._fallback_answer(query, provincial_chunks, global_chunks, province_code)
+        return self._call_llm(payload)
 
     def generate_compare_answer(self, query: str, result_by_province: dict) -> str:
-        lines = [f"问题: {query}", "跨省对比摘要:"]
-        for province, chunks in result_by_province.items():
-            if not chunks:
-                lines.append(f"- {province}: 未检索到充分依据")
-                continue
-            lines.append(f"- {province}: {chunks[0].text[:140]}...")
-        return "\n".join(lines)
-
-    def _fallback_answer(
-        self,
-        query: str,
-        provincial_chunks: List[PolicyChunk],
-        global_chunks: List[PolicyChunk],
-        province_code: Optional[str],
-    ) -> str:
-        if not provincial_chunks and not global_chunks:
-            return "未检索到充分依据。请补充省份、交易类型或时间范围后重试。"
-        summary_parts = []
-        if provincial_chunks:
-            summary_parts.append(f"{province_code or '省级'}依据: {provincial_chunks[0].text[:120]}")
-        if global_chunks:
-            summary_parts.append(f"通用依据: {global_chunks[0].text[:120]}")
-        return f"基于检索结果，关于“{query}”的结论如下：\n" + "\n".join(summary_parts)
+        self._require_ready()
+        payload = self._build_compare_payload(query, result_by_province)
+        return self._call_llm(payload)

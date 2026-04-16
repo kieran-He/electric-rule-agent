@@ -1,6 +1,7 @@
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 
 from app import main
+from app.generator import LLMGenerationError
 from app.ingestion import IngestStats
 from app.schemas import QueryMode, QueryResponse
 
@@ -73,3 +74,20 @@ def test_query_works_when_ingest_disabled(monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json()["conclusion"] == "ok"
+
+
+def test_query_returns_503_when_llm_fails(monkeypatch):
+    def fake_process(_req):
+        raise LLMGenerationError("upstream timeout")
+
+    monkeypatch.setattr(main.service, "process", fake_process)
+    resp = client.post(
+        "/query",
+        json={
+            "query": "陕西中长期交易流程",
+            "session_id": "test-session-2",
+            "top_k": 5,
+        },
+    )
+    assert resp.status_code == 503
+    assert "upstream timeout" in resp.json()["detail"]
