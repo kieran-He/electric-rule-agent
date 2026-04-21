@@ -1,0 +1,71 @@
+{
+  "version": "test_v3.0",
+  "generated_at": "2026-04-21",
+  "total_count": 5,
+  "distribution": {
+    "clause_qa": 4,
+    "rejection": 1
+  },
+  "questions": [
+    {
+      "question_id": "q001",
+      "question": "发电侧中长期合同签约比例要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": ["转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"],
+      "expected_articles": ["2"],
+      "expected_answer_keywords": ["燃煤发电企业", "60%", "80%", "签约比例"],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q002",
+      "question": "用电侧中长期合同签约比例要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": ["转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"],
+      "expected_articles": ["3"],
+      "expected_answer_keywords": ["用电侧", "45%", "60%", "签约比例"],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q003",
+      "question": "现货市场的结算周期是多少？",
+      "category": "clause_qa",
+      "expected_docs": ["附件2陕西电力市场结算实施细则（连续试运行V2）"],
+      "expected_articles": [],
+      "expected_answer_keywords": ["结算", "周期", "日清", "月结"],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q004",
+      "question": "独立储能参与电力市场有哪些规定？",
+      "category": "clause_qa",
+      "expected_docs": ["陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"],
+      "expected_articles": [],
+      "expected_answer_keywords": ["储能", "市场", "参与", "交易"],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q005",
+      "question": "美国电力市场的监管政策是什么？",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": ["未检索到", "无法回答", "不在知识库"],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "中等问题",
+      "scope_type": "知识库外"
+    }
+  ]
+}

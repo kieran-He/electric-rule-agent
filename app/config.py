@@ -1,45 +1,52 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
-try:
-    from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-    load_dotenv()
-except Exception:
-    pass
+load_dotenv()
+
+
+def _env(key: str, default: str) -> str:
+    return os.getenv(key, default)
 
 
 @dataclass
 class Settings:
-    app_name: str = os.getenv("APP_NAME", "feishu-power-policy-bot")
-    host: str = os.getenv("HOST", "0.0.0.0")
-    port: int = int(os.getenv("PORT", "8000"))
-    ingest_enabled: bool = os.getenv("INGEST_ENABLED", "false").lower() == "true"
-    chroma_path: str = os.getenv("CHROMA_PATH", "./data/chroma")
-    docs_root: str = os.getenv("DOCS_ROOT", "./data/docs")
-    embedding_model: str = os.getenv(
-        "EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    )
-    glm_api_key: str = os.getenv("GLM_API_KEY", "")
-    glm_endpoint: str = os.getenv(
-        "GLM_ENDPOINT", "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    )
-    glm_model: str = os.getenv("GLM_MODEL", "glm-4.5")
-    glm_timeout_seconds: int = int(os.getenv("GLM_TIMEOUT_SECONDS", "60"))
-    feishu_token: str = os.getenv("FEISHU_VERIFICATION_TOKEN", "")
-    feishu_signing_secret: str = os.getenv("FEISHU_SIGNING_SECRET", "")
-    feishu_app_id: str = os.getenv("FEISHU_APP_ID", "")
-    feishu_app_secret: str = os.getenv("FEISHU_APP_SECRET", "")
-    province_confidence_threshold: float = float(os.getenv("PROVINCE_CONFIDENCE_THRESHOLD", "0.7"))
-    top_k: int = int(os.getenv("TOP_K", "5"))
-    event_ttl_seconds: int = int(os.getenv("EVENT_TTL_SECONDS", "600"))
-    ingest_index_path: str = os.getenv("INGEST_INDEX_PATH", "./data/chroma/ingest_index.json")
-    tesseract_cmd: str = os.getenv("TESSERACT_CMD", "C:/Program Files/Tesseract-OCR/tesseract.exe")
-    tessdata_prefix: str = os.getenv("TESSDATA_PREFIX", "")
-    ocr_enabled: bool = os.getenv("OCR_ENABLED", "false").lower() == "true"
-    ocr_min_ch_ratio: float = float(os.getenv("OCR_MIN_CH_RATIO", "0.08"))
-    ocr_max_replacement_ratio: float = float(os.getenv("OCR_MAX_REPLACEMENT_RATIO", "0.03"))
-    ocr_empty_page_threshold: float = float(os.getenv("OCR_EMPTY_PAGE_THRESHOLD", "0.3"))
+    app_name: str = _env("APP_NAME", "shanxi-power-rule-engine")
+    app_env: str = _env("APP_ENV", "dev")
+    host: str = _env("HOST", "0.0.0.0")
+    port: int = int(_env("PORT", "8000"))
+    log_level: str = _env("LOG_LEVEL", "INFO")
+    log_file: str = _env("LOG_FILE", "data/processed/app.log")
+    province_default: str = _env("PROVINCE_DEFAULT", "SN")
+    database_url: str = _env("DATABASE_URL", "sqlite:///./data/processed/app.db")
+    chroma_path: str = _env("CHROMA_PATH", "./data/chroma")
+    docs_root: str = _env("DOCS_ROOT", "./data/raw")
+    embedding_model: str = _env("EMBEDDING_MODEL", "deterministic")
+    reranker_model: str = _env("RERANKER_MODEL", "keyword-overlap")
+    top_k: int = int(_env("TOP_K", "8"))
+    vector_top_k: int = int(_env("VECTOR_TOP_K", "8"))
+    keyword_top_k: int = int(_env("KEYWORD_TOP_K", "8"))
+    rerank_top_k: int = int(_env("RERANK_TOP_K", "8"))
+    conversation_ttl_minutes: int = int(_env("CONVERSATION_TTL_MINUTES", "120"))
+    current_only_default: bool = _env("CURRENT_ONLY_DEFAULT", "true").lower() == "true"
+    prefer_draft_default: bool = _env("PREFER_DRAFT_DEFAULT", "false").lower() == "true"
+    tesseract_cmd: str = _env("TESSERACT_CMD", "tesseract")
+    tessdata_prefix: str = _env("TESSDATA_PREFIX", "")
+
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite")
+
+    def ensure_dirs(self) -> None:
+        for raw_path in [self.log_file, self.chroma_path, self.docs_root, "data/processed"]:
+            path = Path(raw_path)
+            target = path.parent if path.suffix else path
+            target.mkdir(parents=True, exist_ok=True)
 
 
 settings = Settings()
+settings.ensure_dirs()

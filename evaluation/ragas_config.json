@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "use_mock": true,
+  "llm_endpoint": "",
+  "llm_api_key": "",
+  "llm_model": "glm-4",
+  "batch_size": 10,
+  "timeout_seconds": 60,
+  "max_retries": 2,
+  "enable_progress_monitor": true,
+  "cache_results": true,
+  "cache_dir": "evaluation/.ragas_cache",
+  "metrics": [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision"
+  ]
+}

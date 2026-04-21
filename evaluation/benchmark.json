@@ -1,0 +1,2044 @@
+{
+  "version": "v1.0",
+  "generated_at": "0",
+  "total_count": 100,
+  "distribution": {
+    "clause_qa": 40,
+    "flow_qa": 20,
+    "compare_qa": 15,
+    "settlement_qa": 15,
+    "rejection": 10
+  },
+  "questions": [
+    {
+      "question_id": "q001",
+      "question": "价格机制的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "零售",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q002",
+      "question": "零售的结算周期是多少？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q003",
+      "question": "从注册到交易的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q004",
+      "question": "广东2025价格机制的价格上限内容",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "火电企业",
+        "零售",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q005",
+      "question": "售电公司2024计量要求要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "现货",
+        "计量要求"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q006",
+      "question": "售电公司办理中长期市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q007",
+      "question": "山东新能源企业参与市场的详细流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q008",
+      "question": "美国电力市场规则是什么？",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q009",
+      "question": "对比发电企业和新能源企业的价格机制要求",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山西电力市场交易规则",
+        "山东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q010",
+      "question": "请介绍一下中国股市的最新政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q011",
+      "question": "电力用户2025准入条件要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "现货",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q012",
+      "question": "签约比例对风电企业有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "风电企业",
+        "计量",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q013",
+      "question": "从注册到交易的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q014",
+      "question": "对比新能源企业和独立储能的结算规则要求",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山东电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q015",
+      "question": "虚拟电厂的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q016",
+      "question": "新能源企业的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q017",
+      "question": "独立储能结算电费的计算方式",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q018",
+      "question": "电力用户的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q019",
+      "question": "发电企业在不同市场中的准入条件对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山东电力市场交易规则",
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q020",
+      "question": "年度结算的签约比例是如何规定的？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "结算",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q021",
+      "question": "新能源汽车补贴政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q022",
+      "question": "准入条件的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "零售",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q023",
+      "question": "新能源企业准入辅助服务市场的流程是怎样的？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q024",
+      "question": "虚拟电厂在零售中的价格机制要求",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "零售",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q025",
+      "question": "售电公司参与中长期需要满足哪些条件？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "中长期",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q026",
+      "question": "电力用户参与零售需要满足哪些条件？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "零售",
+        "计量要求"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q027",
+      "question": "零售和辅助服务的准入条件对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则",
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q028",
+      "question": "发电企业2025价格机制要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "发电企业",
+        "计量",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q029",
+      "question": "结算规则对独立储能有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "零售",
+        "结算规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q030",
+      "question": "售电公司参与现货需要满足哪些条件？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "现货",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q031",
+      "question": "山东和江苏结算规则有什么区别？",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山东电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q032",
+      "question": "现货的结算规则如何执行？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "现货",
+        "结算规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q033",
+      "question": "储能参与辅助服务市场的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q034",
+      "question": "新能源企业办理中长期市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q035",
+      "question": "电力用户的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q036",
+      "question": "年度现货的交易流程是如何规定的？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "现货",
+        "交易流程"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q037",
+      "question": "火电企业2025签约比例要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "火电企业",
+        "结算",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q038",
+      "question": "风电企业参与零售需要满足哪些条件？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "风电企业",
+        "零售",
+        "交易流程"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q039",
+      "question": "实时零售的准入条件是如何规定的？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "零售",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q040",
+      "question": "独立储能在计量中的报价规则要求",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "计量",
+        "报价规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q041",
+      "question": "山西2026报价规则的准入条件内容",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "现货",
+        "报价规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q042",
+      "question": "火电企业在不同市场中的准入条件对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q043",
+      "question": "售电公司办理现货市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q044",
+      "question": "对比电力用户和售电公司的交易流程要求",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山东电力市场交易规则",
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q045",
+      "question": "电力用户在不同市场中的准入条件对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "广东电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q046",
+      "question": "年度结算的计量要求是如何规定的？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "发电企业",
+        "结算",
+        "计量要求"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q047",
+      "question": "江苏不同年份计量要求的变化",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山西电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q048",
+      "question": "日清月结的具体流程是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q049",
+      "question": "新能源企业办理辅助服务市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q050",
+      "question": "新能源企业办理现货市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q051",
+      "question": "结算和辅助服务的报价规则对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "江苏电力市场交易规则",
+        "山东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q052",
+      "question": "售电公司在不同市场中的准入条件对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "江苏电力市场交易规则",
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q053",
+      "question": "结算的结算周期是多少？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q054",
+      "question": "结算规则对虚拟电厂有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "零售",
+        "结算规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q055",
+      "question": "签约比例的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "发电企业",
+        "现货",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q056",
+      "question": "广东新能源企业参与市场的详细流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q057",
+      "question": "如何办理营业执照？",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q058",
+      "question": "美国电力市场规则是什么？",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q059",
+      "question": "准入条件对售电公司有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "结算",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q060",
+      "question": "山东和广东交易流程有什么区别？",
+      "category": "compare_qa",
+      "expected_docs": [
+        "山东电力市场交易规则",
+        "广东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q061",
+      "question": "中长期的计量要求有哪些？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q062",
+      "question": "独立储能在零售中的准入条件要求",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "零售",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q063",
+      "question": "交易流程对电力用户有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "结算",
+        "交易流程"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q064",
+      "question": "陕西2026交易流程的价格上限内容",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "辅助服务",
+        "交易流程"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q065",
+      "question": "零售的计量要求有哪些？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q066",
+      "question": "签约比例的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "新能源企业",
+        "现货",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q067",
+      "question": "山西2025价格机制的准入条件内容",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "零售",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q068",
+      "question": "虚拟电厂准入中长期市场的流程是怎样的？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q069",
+      "question": "请介绍一下中国股市的最新政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q070",
+      "question": "售电公司的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q071",
+      "question": "储能准入现货市场的流程是怎样的？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q072",
+      "question": "江苏虚拟电厂参与市场的详细流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q073",
+      "question": "电力用户结算电费的计算方式",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q074",
+      "question": "准入条件对电力用户有什么影响？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "电力用户",
+        "中长期",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q075",
+      "question": "储能注册现货市场需要哪些步骤？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q076",
+      "question": "广东和陕西准入条件有什么区别？",
+      "category": "compare_qa",
+      "expected_docs": [
+        "广东电力市场交易规则",
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q077",
+      "question": "零售的结算周期是多少？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q078",
+      "question": "虚拟电厂注册中长期市场需要哪些步骤？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q079",
+      "question": "现货的准入条件如何执行？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "火电企业",
+        "现货",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q080",
+      "question": "日清月结的具体流程是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q081",
+      "question": "新能源企业2026报价规则要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "新能源企业",
+        "现货",
+        "报价规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q082",
+      "question": "售电公司办理现货市场手续的流程",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q083",
+      "question": "股票投资的税收政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q084",
+      "question": "对比虚拟电厂和火电企业的交易流程要求",
+      "category": "compare_qa",
+      "expected_docs": [
+        "广东电力市场交易规则",
+        "江苏电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q085",
+      "question": "虚拟电厂在计量中的签约比例要求",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "计量",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q086",
+      "question": "结算的准入条件如何执行？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "江苏2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "风电企业",
+        "结算",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q087",
+      "question": "结算和零售的报价规则对比",
+      "category": "compare_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则",
+        "山东电力市场交易规则"
+      ],
+      "expected_articles": [
+        "准入条件",
+        "价格机制"
+      ],
+      "expected_answer_keywords": [
+        "区别",
+        "对比",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "短问题",
+      "scope_type": "跨省对比"
+    },
+    {
+      "question_id": "q088",
+      "question": "陕西2026结算规则的签约比例内容",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "计量",
+        "结算规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q089",
+      "question": "新能源汽车补贴政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q090",
+      "question": "虚拟电厂的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "电力市场结算规则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "计量要求"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q091",
+      "question": "计量要求的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "发电企业",
+        "现货",
+        "计量要求"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q092",
+      "question": "虚拟电厂注册现货市场需要哪些步骤？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q093",
+      "question": "售电公司在计量中的准入条件要求",
+      "category": "clause_qa",
+      "expected_docs": [
+        "广东2024电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "计量",
+        "准入条件"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q094",
+      "question": "年度计量的计量要求是如何规定的？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "火电企业",
+        "计量",
+        "计量要求"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q095",
+      "question": "如何办理营业执照？",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q096",
+      "question": "从注册到交易的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "短问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q097",
+      "question": "报价规则的具体规定有哪些？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西2025电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "售电公司",
+        "中长期",
+        "报价规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "短问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q098",
+      "question": "售电公司注册中长期市场需要哪些步骤？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "山西电力市场交易规则"
+      ],
+      "expected_articles": [
+        "三、准入流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q099",
+      "question": "虚拟电厂2026报价规则要求是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "山西2026电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "辅助服务",
+        "报价规则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q100",
+      "question": "股票投资的税收政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "eval_id": "eval_20260421_161037_b0a6053c",
+  "timestamp": "2026-04-21T16:10:41.925133",
+  "total_questions": 5,
+  "metrics": {
+    "recall@3": 0.0,
+    "recall@5": 0.0,
+    "precision@k": 0.0,
+    "hit_rate": 0.0,
+    "avg_score": 0.0,
+    "ood_rate": 0.0,
+    "citation_rate": 1.0,
+    "citation_accuracy": 0.0,
+    "formal_doc_priority": 1.0,
+    "draft_misuse_rate": 0.0,
+    "avg_latency_ms": 831.8,
+    "p99_latency_ms": 3902,
+    "pass_rate": 0.8,
+    "flow_complete_rate": 1.0,
+    "rejection_correct_rate": 0.0
+  },
+  "threshold_check": {
+    "recall@3": {
+      "target": 0.85,
+      "actual": 0.0,
+      "pass": false
+    },
+    "recall@5": {
+      "target": 0.9,
+      "actual": 0.0,
+      "pass": false
+    },
+    "precision@k": {
+      "target": 0.8,
+      "actual": 0.0,
+      "pass": false
+    },
+    "hit_rate": {
+      "target": 0.9,
+      "actual": 0.0,
+      "pass": false
+    },
+    "avg_score": {
+      "target": 0.7,
+      "actual": 0.0,
+      "pass": false
+    },
+    "ood_rate": {
+      "target": 0.1,
+      "actual": 0.0,
+      "pass": true
+    },
+    "citation_rate": {
+      "target": 0.95,
+      "actual": 1.0,
+      "pass": true
+    },
+    "citation_accuracy": {
+      "target": 0.9,
+      "actual": 0.0,
+      "pass": false
+    },
+    "formal_doc_priority": {
+      "target": 0.95,
+      "actual": 1.0,
+      "pass": true
+    },
+    "draft_misuse_rate": {
+      "target": 0.05,
+      "actual": 0.0,
+      "pass": true
+    },
+    "faithfulness": {
+      "target": 0.85,
+      "actual": null,
+      "pass": false
+    },
+    "answer_relevancy": {
+      "target": 0.85,
+      "actual": null,
+      "pass": false
+    },
+    "context_precision": {
+      "target": 0.8,
+      "actual": null,
+      "pass": false
+    },
+    "flow_complete_rate": {
+      "target": 0.85,
+      "actual": 1.0,
+      "pass": true
+    },
+    "context_continuation_rate": {
+      "target": 0.8,
+      "actual": null,
+      "pass": true
+    },
+    "rejection_correct_rate": {
+      "target": 0.85,
+      "actual": 0.0,
+      "pass": false
+    },
+    "avg_latency_ms": {
+      "target": 8000,
+      "actual": 831.8,
+      "pass": true
+    },
+    "p99_latency_ms": {
+      "target": 15000,
+      "actual": 3902,
+      "pass": true
+    }
+  },
+  "overall_pass": false,
+  "failed_questions": [
+    "q005"
+  ],
+  "benchmark_version": "benchmark_test",
+  "git_commit": "874d583b",
+  "config_snapshot": null
+}

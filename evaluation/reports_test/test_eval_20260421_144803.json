@@ -1,0 +1,144 @@
+{
+  "eval_id": "test_eval_20260421_144803",
+  "timestamp": "2026-04-21T14:48:03.465314",
+  "benchmark_version": "test_v1.0",
+  "total_questions": 5,
+  "pass_count": 5,
+  "overall_pass": false,
+  "metrics": {
+    "recall@3": 1.0,
+    "recall@5": 1.0,
+    "precision@k": 0.5,
+    "hit_rate": 1.0,
+    "avg_score": 0.85,
+    "citation_rate": 0.8,
+    "avg_latency_ms": 150,
+    "pass_rate": 1.0,
+    "faithfulness": 0.78,
+    "answer_relevancy": 0.85,
+    "context_precision": 0.74
+  },
+  "threshold_check": {
+    "recall@3": {
+      "target": 0.85,
+      "actual": 1.0,
+      "pass": true
+    },
+    "recall@5": {
+      "target": 0.9,
+      "actual": 1.0,
+      "pass": true
+    },
+    "precision@k": {
+      "target": 0.8,
+      "actual": 0.5,
+      "pass": false
+    },
+    "hit_rate": {
+      "target": 0.9,
+      "actual": 1.0,
+      "pass": true
+    },
+    "avg_score": {
+      "target": 0.7,
+      "actual": 0.85,
+      "pass": true
+    },
+    "ood_rate": {
+      "target": 0.1,
+      "actual": 0.2,
+      "pass": false
+    },
+    "citation_rate": {
+      "target": 0.95,
+      "actual": 0.8,
+      "pass": false
+    },
+    "citation_accuracy": {
+      "target": 0.9,
+      "actual": 1.0,
+      "pass": true
+    },
+    "formal_doc_priority": {
+      "target": 0.95,
+      "actual": 1.0,
+      "pass": true
+    },
+    "draft_misuse_rate": {
+      "target": 0.05,
+      "actual": 0.0,
+      "pass": true
+    },
+    "faithfulness": {
+      "target": 0.85,
+      "actual": 0.78,
+      "pass": false
+    },
+    "answer_relevancy": {
+      "target": 0.85,
+      "actual": 0.85,
+      "pass": true
+    },
+    "context_precision": {
+      "target": 0.8,
+      "actual": 0.74,
+      "pass": false
+    },
+    "flow_complete_rate": {
+      "target": 0.85,
+      "actual": 1.0,
+      "pass": true
+    },
+    "context_continuation_rate": {
+      "target": 0.8,
+      "actual": null,
+      "pass": true
+    },
+    "rejection_correct_rate": {
+      "target": 0.85,
+      "actual": 1.0,
+      "pass": true
+    },
+    "avg_latency_ms": {
+      "target": 8000,
+      "actual": 150,
+      "pass": true
+    },
+    "p99_latency_ms": {
+      "target": 15000,
+      "actual": 150,
+      "pass": true
+    }
+  },
+  "failed_questions": [],
+  "ragas_config": {
+    "use_mock": true,
+    "batch_size": 10
+  },
+  "sample_results": [
+    {
+      "question_id": "q001",
+      "question": "陕西2026年中长期签约比例要求是什么？",
+      "category": "clause_qa",
+      "is_correct": true,
+      "faithfulness": 0.85,
+      "relevancy": 0.85
+    },
+    {
+      "question_id": "q002",
+      "question": "独立储能参与现货市场的流程是什么？",
+      "category": "flow_qa",
+      "is_correct": true,
+      "faithfulness": 0.85,
+      "relevancy": 0.85
+    },
+    {
+      "question_id": "q003",
+      "question": "现货市场的结算周期是多少？",
+      "category": "clause_qa",
+      "is_correct": true,
+      "faithfulness": 0.85,
+      "relevancy": 0.85
+    }
+  ]
+}
