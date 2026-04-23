@@ -66,6 +66,7 @@ class LLMClient:
                 max_tokens=2048,
                 system=system,
                 messages=[{"role": "user", "content": user_content}],
+                thinking={"type": "disabled"},
             )
             
             text_content = ""

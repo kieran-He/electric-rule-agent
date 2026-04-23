@@ -62,11 +62,12 @@ class QAOrchestrator:
             )
             all_chunks.extend(chunks)
         
-        seen_texts: set[str] = set()
+        seen_hashes: set[int] = set()
         unique_chunks: list[PolicyChunk] = []
         for chunk in all_chunks:
-            if chunk.text[:100] not in seen_texts:
-                seen_texts.add(chunk.text[:100])
+            text_hash = hash(chunk.text[:100])
+            if text_hash not in seen_hashes:
+                seen_hashes.add(text_hash)
                 unique_chunks.append(chunk)
         
         return unique_chunks[:top_k]

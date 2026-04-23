@@ -8,6 +8,8 @@ try:
     from datasets import Dataset
     from ragas import evaluate
     from ragas.metrics import faithfulness, answer_relevancy, context_precision
+    from ragas.llms import LangchainLLMWrapper
+    from langchain_anthropic import ChatAnthropic
     RAGAS_AVAILABLE = True
 except ImportError:
     RAGAS_AVAILABLE = False
@@ -16,6 +18,8 @@ except ImportError:
     faithfulness = None
     answer_relevancy = None
     context_precision = None
+    LangchainLLMWrapper = None
+    ChatAnthropic = None
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +34,7 @@ class RagasEvaluator:
         self.llm_endpoint = llm_endpoint or os.getenv("LLM_ENDPOINT", "")
         self.llm_api_key = llm_api_key or os.getenv("LLM_API_KEY", "")
         self.llm_model = llm_model
+        self.ragas_llm = None
         self._setup_ragas()
 
     def _setup_ragas(self) -> None:
@@ -37,25 +42,26 @@ class RagasEvaluator:
             return
         
         if self.llm_endpoint and self.llm_api_key:
-            # Ragas expects OpenAI-compatible APIs by default
-            # For MiniMax Anthropic endpoint, we need special handling
-            
             # Validate endpoint format
             if not self.llm_endpoint.startswith("http"):
                 self.llm_endpoint = f"https://{self.llm_endpoint}"
             
-            # For MiniMax Anthropic endpoint, set as OpenAI-compatible base
-            # Note: This may not work perfectly due to API format differences
-            os.environ["OPENAI_API_KEY"] = self.llm_api_key
-            os.environ["OPENAI_API_BASE"] = self.llm_endpoint
-            
-            # Log warning for non-OpenAI endpoints
-            if "openai" not in self.llm_endpoint.lower():
-                logger.warning(
-                    f"Using MiniMax endpoint ({self.llm_endpoint}) with Ragas. "
-                    "API format is Anthropic, not OpenAI-compatible. "
-                    "Evaluation may fail or return incorrect results."
+            # Use LangchainLLMWrapper with ChatAnthropic for MiniMax
+            try:
+                langchain_llm = ChatAnthropic(
+                    model=self.llm_model,
+                    api_key=self.llm_api_key,
+                    anthropic_api_url=self.llm_endpoint,
+                    max_tokens=2048,
+                    timeout=60,
                 )
+                self.ragas_llm = LangchainLLMWrapper(langchain_llm)
+                logger.info(f"Ragas LLM setup complete: {self.llm_model} via {self.llm_endpoint}")
+            except Exception as e:
+                logger.warning(f"Failed to setup LangchainLLMWrapper: {e}. Falling back to OpenAI env vars.")
+                os.environ["OPENAI_API_KEY"] = self.llm_api_key
+                os.environ["OPENAI_API_BASE"] = self.llm_endpoint
+                self.ragas_llm = None
 
     def evaluate_batch(
         self,
@@ -88,9 +94,15 @@ class RagasEvaluator:
                 "ground_truth": ground_truths or [""] * len(questions),
             })
             
+            # Use custom LLM if available
+            eval_kwargs = {}
+            if self.ragas_llm is not None:
+                eval_kwargs["llm"] = self.ragas_llm
+            
             result = evaluate(
                 dataset,
                 metrics=[faithfulness, answer_relevancy, context_precision],
+                **eval_kwargs,
             )
             
             faithfulness_scores = {}

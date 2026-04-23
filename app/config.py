@@ -36,6 +36,7 @@ class Settings:
     prefer_draft_default: bool = _env("PREFER_DRAFT_DEFAULT", "false").lower() == "true"
     tesseract_cmd: str = _env("TESSERACT_CMD", "tesseract")
     tessdata_prefix: str = _env("TESSDATA_PREFIX", "")
+    use_langchain: bool = _env("USE_LANGCHAIN", "false").lower() == "true"
 
     @property
     def is_sqlite(self) -> bool:
