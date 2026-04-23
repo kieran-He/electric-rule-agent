@@ -1,0 +1,479 @@
+{
+  "experiment": "retrieval_only_shaaxi",
+  "timestamp": "2026-04-23 18:09:13",
+  "calibration_config": {
+    "baseline_range": "0.5-0.85",
+    "hybrid_range": "0.6-0.99",
+    "baseline_rejection_threshold": 0.65,
+    "hybrid_rejection_threshold": 0.85
+  },
+  "config": {
+    "province": "陕西省",
+    "test_size": 20,
+    "bm25_k1": 1.5,
+    "bm25_b": 0.6,
+    "reranker": "BAAI/bge-reranker-base",
+    "reranker_preload": 7.880488872528076,
+    "score_normalization": true
+  },
+  "baseline": {
+    "recall_at_3": 0.6,
+    "recall_at_5": 0.75,
+    "precision_at_k": 0.0,
+    "hit_rate": 0.9,
+    "avg_score_raw": 0.7128448102035021,
+    "avg_score_calibrated": 0.6081280291528631,
+    "avg_latency_ms": 19.7,
+    "rejection_accuracy": 0.5,
+    "correct_rejections": 1,
+    "total_should_reject": 2
+  },
+  "hybrid": {
+    "recall_at_3": 0.75,
+    "recall_at_5": 0.85,
+    "precision_at_k": 0.0,
+    "hit_rate": 0.9,
+    "avg_score_raw": 0.9697151236512043,
+    "avg_score_calibrated": 0.9479874965415495,
+    "avg_latency_ms": 8821.55,
+    "rejection_accuracy": 1.0,
+    "correct_rejections": 2,
+    "total_should_reject": 2
+  },
+  "improvement": {
+    "recall_at_3": 25.000000000000007,
+    "recall_at_5": 13.33333333333333,
+    "hit_rate": 0.0,
+    "avg_score_calibrated": 55.886170525985904
+  },
+  "details": [
+    {
+      "question_id": "q001",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件5陕西省间电力现货市场购售电交易实施细则（连续试运行V2）"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ]
+    },
+    {
+      "question_id": "q002",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省新型储能参与电力市场交易实施方案",
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"
+      ],
+      "hybrid_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"
+      ]
+    },
+    {
+      "question_id": "q003",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）"
+      ],
+      "hybrid_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ]
+    },
+    {
+      "question_id": "q004",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ],
+      "hybrid_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ]
+    },
+    {
+      "question_id": "q005",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ],
+      "hybrid_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ]
+    },
+    {
+      "question_id": "q006",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ]
+    },
+    {
+      "question_id": "q007",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力中长期市场实施细则",
+        "陕西电力零售市场交易细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ],
+      "hybrid_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）",
+        "附件1：陕西省电力中长期市场实施细则（征求意见稿）"
+      ]
+    },
+    {
+      "question_id": "q008",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力中长期分时段交易实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ],
+      "hybrid_docs": [
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）"
+      ]
+    },
+    {
+      "question_id": "q009",
+      "category": "flow_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"
+      ],
+      "hybrid_docs": [
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ]
+    },
+    {
+      "question_id": "q010",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ],
+      "hybrid_docs": [
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ]
+    },
+    {
+      "question_id": "q011",
+      "category": "compare_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ]
+    },
+    {
+      "question_id": "q012",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则",
+        "陕西省新型储能参与电力市场交易实施方案"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"
+      ]
+    },
+    {
+      "question_id": "q013",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件5陕西省间电力现货市场购售电交易实施细则（连续试运行V2）",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件1陕西电力现货市场交易实施细则（连续试运行V2）",
+        "附件5陕西省间电力现货市场购售电交易实施细则（连续试运行V2）"
+      ]
+    },
+    {
+      "question_id": "q014",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则",
+        "陕西电力中长期分时段交易实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ],
+      "hybrid_docs": [
+        "附件2陕西电力市场结算实施细则（连续试运行V2）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件2陕西电力市场结算实施细则（连续试运行V2）"
+      ]
+    },
+    {
+      "question_id": "q015",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "hybrid_docs": [
+        "附件2陕西电力市场结算实施细则（连续试运行V2）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ]
+    },
+    {
+      "question_id": "q016",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "hybrid_docs": [
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件陕西省2026年电力现货市场连续运行工作方案"
+      ]
+    },
+    {
+      "question_id": "q017",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）",
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
+      ],
+      "hybrid_docs": [
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件2陕西电力市场结算实施细则（连续试运行V2）",
+        "附件2陕西电力市场结算实施细则（连续试运行V2）"
+      ]
+    },
+    {
+      "question_id": "q018",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件4陕西电力调频辅助服务市场实施细则"
+      ],
+      "should_reject": false,
+      "baseline_hit": true,
+      "hybrid_hit": true,
+      "baseline_rejected": false,
+      "hybrid_rejected": false,
+      "baseline_docs": [
+        "附件4陕西电力调频辅助服务市场实施细则（连续试运行V2）",
+        "附件陕西省2026年电力现货市场连续运行工作方案",
+        "附件4陕西电力调频辅助服务市场实施细则（连续试运行V2）"
+      ],
+      "hybrid_docs": [
+        "附件4陕西电力调频辅助服务市场实施细则（连续试运行V2）",
+        "附件4陕西电力调频辅助服务市场实施细则（连续试运行V2）",
+        "陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"
+      ]
+    },
+    {
+      "question_id": "q019",
+      "category": "rejection",
+      "expected_docs": [],
+      "should_reject": true,
+      "baseline_hit": false,
+      "hybrid_hit": false,
+      "baseline_rejected": false,
+      "hybrid_rejected": true,
+      "baseline_docs": [
+        "附件1陕西电力现货市场交易实施细则（连续试运行V2）",
+        "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）",
+        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+      ],
+      "hybrid_docs": []
+    },
+    {
+      "question_id": "q020",
+      "category": "rejection",
+      "expected_docs": [],
+      "should_reject": true,
+      "baseline_hit": false,
+      "hybrid_hit": false,
+      "baseline_rejected": true,
+      "hybrid_rejected": true,
+      "baseline_docs": [],
+      "hybrid_docs": []
+    }
+  ]
+}

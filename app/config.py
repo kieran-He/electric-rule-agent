@@ -37,6 +37,18 @@ class Settings:
     tesseract_cmd: str = _env("TESSERACT_CMD", "tesseract")
     tessdata_prefix: str = _env("TESSDATA_PREFIX", "")
     use_langchain: bool = _env("USE_LANGCHAIN", "false").lower() == "true"
+    use_hybrid_retrieval: bool = _env("USE_HYBRID_RETRIEVAL", "false").lower() == "true"
+    hybrid_vector_top_k: int = int(_env("HYBRID_VECTOR_TOP_K", "15"))
+    hybrid_bm25_top_k: int = int(_env("HYBRID_BM25_TOP_K", "15"))
+    hybrid_final_top_k: int = int(_env("HYBRID_FINAL_TOP_K", "12"))
+    reranker_model: str = _env("RERANKER_MODEL", "BAAI/bge-reranker-large")
+    reranker_preload: bool = _env("RERANKER_PRELOAD", "true").lower() == "true"
+    reranker_max_length: int = int(_env("RERANKER_MAX_LENGTH", "512"))
+    bm25_k1: float = float(_env("BM25_K1", "1.5"))
+    bm25_b: float = float(_env("BM25_B", "0.6"))
+    query_expansion: bool = _env("QUERY_EXPANSION", "false").lower() == "true"
+    query_expansion_method: str = _env("QUERY_EXPANSION_METHOD", "synonyms")
+    query_expansion_max: int = int(_env("QUERY_EXPANSION_MAX", "5"))
 
     @property
     def is_sqlite(self) -> bool:

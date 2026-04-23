@@ -1,19 +1,32 @@
 {
-  "version": "test_v3.0",
-  "generated_at": "2026-04-21",
-  "total_count": 5,
+  "version": "shaanxi_only_v1",
+  "generated_at": "2026-04-23",
+  "province": "陕西省",
+  "total_count": 20,
   "distribution": {
-    "clause_qa": 4,
-    "rejection": 1
+    "clause_qa": 6,
+    "flow_qa": 4,
+    "compare_qa": 4,
+    "settlement_qa": 4,
+    "rejection": 2
   },
   "questions": [
     {
       "question_id": "q001",
-      "question": "发电侧中长期合同签约比例要求是什么？",
+      "question": "陕西省2026年电力市场化交易中，发电企业的准入条件是什么？",
       "category": "clause_qa",
-      "expected_docs": ["转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"],
-      "expected_articles": ["2"],
-      "expected_answer_keywords": ["燃煤发电企业", "60%", "80%", "签约比例"],
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "一、市场经营主体"
+      ],
+      "expected_answer_keywords": [
+        "燃煤发电",
+        "风电企业",
+        "光伏发电",
+        "全部进入市场"
+      ],
       "should_reject": false,
       "expected_intent": "clause_qa",
       "length_type": "中等问题",
@@ -21,11 +34,21 @@
     },
     {
       "question_id": "q002",
-      "question": "用电侧中长期合同签约比例要求是什么？",
+      "question": "陕西省电力现货市场中，独立储能如何参与市场交易？",
       "category": "clause_qa",
-      "expected_docs": ["转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"],
-      "expected_articles": ["3"],
-      "expected_answer_keywords": ["用电侧", "45%", "60%", "签约比例"],
+      "expected_docs": [
+        "陕西省新型储能参与电力市场交易实施方案",
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "expected_articles": [
+        "独立储能申报交易信息"
+      ],
+      "expected_answer_keywords": [
+        "独立储能",
+        "充电",
+        "放电",
+        "申报"
+      ],
       "should_reject": false,
       "expected_intent": "clause_qa",
       "length_type": "中等问题",
@@ -33,38 +56,381 @@
     },
     {
       "question_id": "q003",
-      "question": "现货市场的结算周期是多少？",
+      "question": "陕西省电力市场中，虚拟电厂的市场注册条件是什么？",
       "category": "clause_qa",
-      "expected_docs": ["附件2陕西电力市场结算实施细则（连续试运行V2）"],
-      "expected_articles": [],
-      "expected_answer_keywords": ["结算", "周期", "日清", "月结"],
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "一、市场经营主体"
+      ],
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "聚合",
+        "注册条件",
+        "聚合服务套餐"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "中等问题",
+      "scope_type": "微观条款"
+    },
+    {
+      "question_id": "q004",
+      "question": "陕西省燃煤发电企业中长期合同签约比例要求是多少？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "二、总体要求"
+      ],
+      "expected_answer_keywords": [
+        "60%",
+        "80%",
+        "年度签约",
+        "月度签约"
+      ],
       "should_reject": false,
       "expected_intent": "clause_qa",
       "length_type": "短问题",
       "scope_type": "微观条款"
     },
     {
-      "question_id": "q004",
-      "question": "独立储能参与电力市场有哪些规定？",
+      "question_id": "q005",
+      "question": "陕西省电力零售市场的交易规则是什么？",
       "category": "clause_qa",
-      "expected_docs": ["陕西省发展和改革委员会 国家能源局西北监管局关于印发《陕西省新型储能参与电力市场交易实施方案》的通知"],
-      "expected_articles": [],
-      "expected_answer_keywords": ["储能", "市场", "参与", "交易"],
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "expected_articles": [
+        "零售市场交易规则"
+      ],
+      "expected_answer_keywords": [
+        "零售用户",
+        "售电公司",
+        "套餐",
+        "签约"
+      ],
       "should_reject": false,
       "expected_intent": "clause_qa",
       "length_type": "中等问题",
-      "scope_type": "微观条款"
+      "scope_type": "宏观总结"
     },
     {
-      "question_id": "q005",
-      "question": "美国电力市场的监管政策是什么？",
+      "question_id": "q006",
+      "question": "陕西省2026年电力现货市场连续运行的工作安排是什么？",
+      "category": "clause_qa",
+      "expected_docs": [
+        "陕西省2026年电力现货市场连续运行工作方案"
+      ],
+      "expected_articles": [
+        "现货市场连续运行"
+      ],
+      "expected_answer_keywords": [
+        "连续运行",
+        "日前市场",
+        "实时市场",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa",
+      "length_type": "长问题",
+      "scope_type": "宏观总结"
+    },
+    {
+      "question_id": "q007",
+      "question": "陕西省电力市场从注册到交易的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力中长期市场实施细则",
+        "陕西电力零售市场交易细则"
+      ],
+      "expected_articles": [
+        "注册流程",
+        "交易流程"
+      ],
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约",
+        "交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q008",
+      "question": "陕西省售电公司办理中长期市场交易的流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力中长期分时段交易实施细则"
+      ],
+      "expected_articles": [
+        "交易组织流程"
+      ],
+      "expected_answer_keywords": [
+        "申报",
+        "撮合",
+        "签约",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q009",
+      "question": "陕西省新能源企业参与现货市场的详细流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "expected_articles": [
+        "日前电能量市场",
+        "申报流程"
+      ],
+      "expected_answer_keywords": [
+        "日前申报",
+        "出清",
+        "实时调整",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q010",
+      "question": "陕西省电力用户办理零售套餐签约的流程是什么？",
+      "category": "flow_qa",
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "expected_articles": [
+        "零售签约流程"
+      ],
+      "expected_answer_keywords": [
+        "选择售电公司",
+        "签订套餐",
+        "确认",
+        "生效"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa",
+      "length_type": "中等问题",
+      "scope_type": "流程说明"
+    },
+    {
+      "question_id": "q011",
+      "question": "对比陕西省燃煤发电企业和新能源企业的市场准入条件差异",
+      "category": "compare_qa",
+      "expected_docs": [
+        "陕西省2026年电力市场化交易实施方案"
+      ],
+      "expected_articles": [
+        "一、市场经营主体"
+      ],
+      "expected_answer_keywords": [
+        "全部进入市场",
+        "机制电量比例",
+        "中长期交易",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "主体对比"
+    },
+    {
+      "question_id": "q012",
+      "question": "对比陕西省独立储能和虚拟电厂参与现货市场的规则差异",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则",
+        "陕西省新型储能参与电力市场交易实施方案"
+      ],
+      "expected_articles": [
+        "独立储能申报",
+        "虚拟电厂申报"
+      ],
+      "expected_answer_keywords": [
+        "充电放电",
+        "聚合资源",
+        "申报要求",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "主体对比"
+    },
+    {
+      "question_id": "q013",
+      "question": "对比陕西省日前市场和实时市场的交易机制差异",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件1陕西电力现货市场交易实施细则"
+      ],
+      "expected_articles": [
+        "日前电能量市场",
+        "实时电能量市场"
+      ],
+      "expected_answer_keywords": [
+        "日前出清",
+        "实时调整",
+        "申报时间",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "市场对比"
+    },
+    {
+      "question_id": "q014",
+      "question": "对比陕西省中长期市场和现货市场的结算方式差异",
+      "category": "compare_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则",
+        "陕西电力中长期分时段交易实施细则"
+      ],
+      "expected_articles": [
+        "中长期结算",
+        "现货结算"
+      ],
+      "expected_answer_keywords": [
+        "日清月结",
+        "偏差结算",
+        "结算周期",
+        "差异"
+      ],
+      "should_reject": false,
+      "expected_intent": "compare_qa",
+      "length_type": "中等问题",
+      "scope_type": "市场对比"
+    },
+    {
+      "question_id": "q015",
+      "question": "陕西省电力现货市场的结算周期是多少？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则"
+      ],
+      "expected_articles": [
+        "结算周期",
+        "结算流程"
+      ],
+      "expected_answer_keywords": [
+        "日清",
+        "月结",
+        "结算",
+        "计量"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "短问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q016",
+      "question": "陕西省电力市场中，偏差电量如何结算？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件2陕西电力市场结算实施细则"
+      ],
+      "expected_articles": [
+        "偏差结算",
+        "偏差考核"
+      ],
+      "expected_answer_keywords": [
+        "偏差电量",
+        "考核费用",
+        "结算价格",
+        "免责条款"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "中等问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q017",
+      "question": "陕西省电力零售市场的结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "陕西电力零售市场交易细则"
+      ],
+      "expected_articles": [
+        "零售结算"
+      ],
+      "expected_answer_keywords": [
+        "零售用户",
+        "售电公司",
+        "结算方式",
+        "套餐价格"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "中等问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q018",
+      "question": "陕西省调频辅助服务市场的结算规则是什么？",
+      "category": "settlement_qa",
+      "expected_docs": [
+        "附件4陕西电力调频辅助服务市场实施细则"
+      ],
+      "expected_articles": [
+        "调频结算"
+      ],
+      "expected_answer_keywords": [
+        "调频服务",
+        "补偿费用",
+        "结算规则",
+        "考核"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa",
+      "length_type": "中等问题",
+      "scope_type": "结算说明"
+    },
+    {
+      "question_id": "q019",
+      "question": "山东省电力市场规则是什么？",
       "category": "rejection",
       "expected_docs": [],
       "expected_articles": [],
-      "expected_answer_keywords": ["未检索到", "无法回答", "不在知识库"],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答",
+        "知识库中没有"
+      ],
       "should_reject": true,
       "expected_intent": "rejection",
-      "length_type": "中等问题",
+      "length_type": "短问题",
+      "scope_type": "知识库外"
+    },
+    {
+      "question_id": "q020",
+      "question": "请介绍一下中国股市的最新政策",
+      "category": "rejection",
+      "expected_docs": [],
+      "expected_articles": [],
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答",
+        "知识库中没有"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection",
+      "length_type": "短问题",
       "scope_type": "知识库外"
     }
   ]

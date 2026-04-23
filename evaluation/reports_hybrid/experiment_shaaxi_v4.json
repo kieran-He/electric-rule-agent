@@ -1,0 +1,199 @@
+{
+  "experiment": "bm25_hybrid_shaaxi_v4",
+  "province": "陕西省",
+  "config": {
+    "bm25_k1": 1.5,
+    "bm25_b": 0.6,
+    "reranker_model": "BAAI/bge-reranker-base",
+    "test_size": 20
+  },
+  "summary": {
+    "baseline_avg_time": 0.02231874465942383,
+    "hybrid_avg_time": 8.622011756896972,
+    "baseline_avg_score": 0.7037988347311814,
+    "hybrid_avg_score": 0.9179303594903709,
+    "score_improvement_pct": 30.425103622255616
+  },
+  "details": [
+    {
+      "question_id": "q001",
+      "category": "clause_qa",
+      "baseline_time": 0.15946531295776367,
+      "hybrid_time": 7.938707590103149,
+      "baseline_score": 0.7333871722221375,
+      "hybrid_score": 0.9852508852879206,
+      "improvement_pct": 34.342530467589846
+    },
+    {
+      "question_id": "q002",
+      "category": "clause_qa",
+      "baseline_time": 0.014503955841064453,
+      "hybrid_time": 8.503160953521729,
+      "baseline_score": 0.7232406387726465,
+      "hybrid_score": 0.998328427473704,
+      "improvement_pct": 38.03544407679949
+    },
+    {
+      "question_id": "q003",
+      "category": "clause_qa",
+      "baseline_time": 0.012999296188354492,
+      "hybrid_time": 8.469267129898071,
+      "baseline_score": 0.7186300754547119,
+      "hybrid_score": 0.9970465252796809,
+      "improvement_pct": 38.74266598831136
+    },
+    {
+      "question_id": "q004",
+      "category": "clause_qa",
+      "baseline_time": 0.01908397674560547,
+      "hybrid_time": 8.420270919799805,
+      "baseline_score": 0.6776021172602972,
+      "hybrid_score": 0.9826020151376724,
+      "improvement_pct": 45.01165065873181
+    },
+    {
+      "question_id": "q005",
+      "category": "clause_qa",
+      "baseline_time": 0.016002178192138672,
+      "hybrid_time": 7.320028781890869,
+      "baseline_score": 0.7991132289171219,
+      "hybrid_score": 0.9932934492826462,
+      "improvement_pct": 24.299462621668503
+    },
+    {
+      "question_id": "q006",
+      "category": "clause_qa",
+      "baseline_time": 0.020000219345092773,
+      "hybrid_time": 7.00404167175293,
+      "baseline_score": 0.7738435914119085,
+      "hybrid_score": 0.9944271892309189,
+      "improvement_pct": 28.504933072657074
+    },
+    {
+      "question_id": "q007",
+      "category": "flow_qa",
+      "baseline_time": 0.013998031616210938,
+      "hybrid_time": 9.639587879180908,
+      "baseline_score": 0.725546528895696,
+      "hybrid_score": 0.9745782166719437,
+      "improvement_pct": 34.32332426085498
+    },
+    {
+      "question_id": "q008",
+      "category": "flow_qa",
+      "baseline_time": 0.013000249862670898,
+      "hybrid_time": 8.42443561553955,
+      "baseline_score": 0.729095920920372,
+      "hybrid_score": 0.9926489690939585,
+      "improvement_pct": 36.1479252059031
+    },
+    {
+      "question_id": "q009",
+      "category": "flow_qa",
+      "baseline_time": 0.012999773025512695,
+      "hybrid_time": 8.499968528747559,
+      "baseline_score": 0.6712305545806885,
+      "hybrid_score": 0.982091357310613,
+      "improvement_pct": 46.312075725473555
+    },
+    {
+      "question_id": "q010",
+      "category": "flow_qa",
+      "baseline_time": 0.01599860191345215,
+      "hybrid_time": 8.907562494277954,
+      "baseline_score": 0.7190422862768173,
+      "hybrid_score": 0.994043563803037,
+      "improvement_pct": 38.24549442706205
+    },
+    {
+      "question_id": "q011",
+      "category": "compare_qa",
+      "baseline_time": 0.012999296188354492,
+      "hybrid_time": 9.328514814376831,
+      "baseline_score": 0.7222105065981547,
+      "hybrid_score": 0.9612795760234197,
+      "improvement_pct": 33.10240812631732
+    },
+    {
+      "question_id": "q012",
+      "category": "compare_qa",
+      "baseline_time": 0.024001598358154297,
+      "hybrid_time": 7.335294723510742,
+      "baseline_score": 0.722716028491656,
+      "hybrid_score": 0.9917814830938975,
+      "improvement_pct": 37.22976162072874
+    },
+    {
+      "question_id": "q013",
+      "category": "compare_qa",
+      "baseline_time": 0.012999296188354492,
+      "hybrid_time": 10.02459168434143,
+      "baseline_score": 0.6570389866828918,
+      "hybrid_score": 0.8531403044859568,
+      "improvement_pct": 29.84622248872878
+    },
+    {
+      "question_id": "q014",
+      "category": "compare_qa",
+      "baseline_time": 0.013999462127685547,
+      "hybrid_time": 8.855316400527954,
+      "baseline_score": 0.6553959995508194,
+      "hybrid_score": 0.9337024837732315,
+      "improvement_pct": 42.46386679399196
+    },
+    {
+      "question_id": "q015",
+      "category": "settlement_qa",
+      "baseline_time": 0.012000083923339844,
+      "hybrid_time": 8.301868438720703,
+      "baseline_score": 0.7285887251297632,
+      "hybrid_score": 0.9212461213270823,
+      "improvement_pct": 26.442544271187607
+    },
+    {
+      "question_id": "q016",
+      "category": "settlement_qa",
+      "baseline_time": 0.014000415802001953,
+      "hybrid_time": 8.440096855163574,
+      "baseline_score": 0.7085858186086019,
+      "hybrid_score": 0.9888282616933187,
+      "improvement_pct": 39.549541597517205
+    },
+    {
+      "question_id": "q017",
+      "category": "settlement_qa",
+      "baseline_time": 0.013001441955566406,
+      "hybrid_time": 8.223134756088257,
+      "baseline_score": 0.7423807581265768,
+      "hybrid_score": 0.926965003212293,
+      "improvement_pct": 24.863823996667275
+    },
+    {
+      "question_id": "q018",
+      "category": "settlement_qa",
+      "baseline_time": 0.015999317169189453,
+      "hybrid_time": 8.74634313583374,
+      "baseline_score": 0.6877591162919998,
+      "hybrid_score": 0.9836183935403824,
+      "improvement_pct": 43.01786341175454
+    },
+    {
+      "question_id": "q019",
+      "category": "rejection",
+      "baseline_time": 0.012000083923339844,
+      "hybrid_time": 10.35107421875,
+      "baseline_score": 0.648643339673678,
+      "hybrid_score": 0.8615814050038656,
+      "improvement_pct": 32.828220426546466
+    },
+    {
+      "question_id": "q020",
+      "category": "rejection",
+      "baseline_time": 0.017322301864624023,
+      "hybrid_time": 9.706968545913696,
+      "baseline_score": 0.5319253007570902,
+      "hybrid_score": 0.04215355908187727,
+      "improvement_pct": -92.07528594299235
+    }
+  ]
+}

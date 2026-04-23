@@ -242,6 +242,14 @@ class LangChainQAOrchestrator:
             )
             citations.append(citation)
         return citations
+    
+    def get_retrieval_stats(self) -> dict:
+        """Get retrieval statistics."""
+        return {
+            "mode": "vector",
+            "embedder": self.repo.embedder_name,
+            "repo_ready": self.repo.ready,
+        }
 
     def run_compare(self, req: QueryRequest) -> QueryAnswer:
         """
