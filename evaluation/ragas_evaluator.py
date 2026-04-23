@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, Dict, List, Optional
+import logging
 
 try:
     from datasets import Dataset
@@ -16,16 +17,18 @@ except ImportError:
     answer_relevancy = None
     context_precision = None
 
+logger = logging.getLogger(__name__)
+
 
 class RagasEvaluator:
     def __init__(
         self,
         llm_endpoint: Optional[str] = None,
         llm_api_key: Optional[str] = None,
-        llm_model: str = "glm-4",
+        llm_model: str = "MiniMax-M2.7",
     ):
-        self.llm_endpoint = llm_endpoint or os.getenv("GLM_ENDPOINT", "")
-        self.llm_api_key = llm_api_key or os.getenv("GLM_API_KEY", "")
+        self.llm_endpoint = llm_endpoint or os.getenv("LLM_ENDPOINT", "")
+        self.llm_api_key = llm_api_key or os.getenv("LLM_API_KEY", "")
         self.llm_model = llm_model
         self._setup_ragas()
 
@@ -34,25 +37,24 @@ class RagasEvaluator:
             return
         
         if self.llm_endpoint and self.llm_api_key:
-            # Note: Ragas expects OpenAI-compatible APIs
-            # GLM endpoint may need validation or custom wrapper
+            # Ragas expects OpenAI-compatible APIs by default
+            # For MiniMax Anthropic endpoint, we need special handling
             
             # Validate endpoint format
             if not self.llm_endpoint.startswith("http"):
                 self.llm_endpoint = f"https://{self.llm_endpoint}"
             
-            # Set environment variables for Ragas
-            # WARNING: This assumes OpenAI API compatibility
+            # For MiniMax Anthropic endpoint, set as OpenAI-compatible base
+            # Note: This may not work perfectly due to API format differences
             os.environ["OPENAI_API_KEY"] = self.llm_api_key
             os.environ["OPENAI_API_BASE"] = self.llm_endpoint
             
             # Log warning for non-OpenAI endpoints
             if "openai" not in self.llm_endpoint.lower():
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning(
-                    f"Using non-OpenAI endpoint ({self.llm_endpoint}) with Ragas. "
-                    "API compatibility may vary. Consider using mock evaluator for testing."
+                    f"Using MiniMax endpoint ({self.llm_endpoint}) with Ragas. "
+                    "API format is Anthropic, not OpenAI-compatible. "
+                    "Evaluation may fail or return incorrect results."
                 )
 
     def evaluate_batch(
@@ -120,6 +122,7 @@ class RagasEvaluator:
             }
         
         except Exception as e:
+            logger.error(f"Ragas evaluation failed: {e}")
             return {
                 "faithfulness": {},
                 "answer_relevancy": {},
@@ -242,6 +245,7 @@ def get_ragas_evaluator(
     use_mock: bool = False,
     llm_endpoint: Optional[str] = None,
     llm_api_key: Optional[str] = None,
+    llm_model: str = "MiniMax-M2.7",
 ) -> Any:
     if use_mock or not RAGAS_AVAILABLE:
         return MockRagasEvaluator()
@@ -249,4 +253,5 @@ def get_ragas_evaluator(
     return RagasEvaluator(
         llm_endpoint=llm_endpoint,
         llm_api_key=llm_api_key,
+        llm_model=llm_model,
     )
