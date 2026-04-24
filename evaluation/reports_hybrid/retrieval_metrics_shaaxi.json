@@ -1,6 +1,6 @@
 {
   "experiment": "retrieval_only_shaaxi",
-  "timestamp": "2026-04-23 18:09:13",
+  "timestamp": "2026-04-24 10:15:10",
   "calibration_config": {
     "baseline_range": "0.5-0.85",
     "hybrid_range": "0.6-0.99",
@@ -13,7 +13,7 @@
     "bm25_k1": 1.5,
     "bm25_b": 0.6,
     "reranker": "BAAI/bge-reranker-base",
-    "reranker_preload": 7.880488872528076,
+    "reranker_preload": 7.782405138015747,
     "score_normalization": true
   },
   "baseline": {
@@ -21,9 +21,9 @@
     "recall_at_5": 0.75,
     "precision_at_k": 0.0,
     "hit_rate": 0.9,
-    "avg_score_raw": 0.7128448102035021,
-    "avg_score_calibrated": 0.6081280291528631,
-    "avg_latency_ms": 19.7,
+    "avg_score_raw": 0.7127246728591752,
+    "avg_score_calibrated": 0.6077847795976434,
+    "avg_latency_ms": 18.4,
     "rejection_accuracy": 0.5,
     "correct_rejections": 1,
     "total_should_reject": 2
@@ -35,7 +35,7 @@
     "hit_rate": 0.9,
     "avg_score_raw": 0.9697151236512043,
     "avg_score_calibrated": 0.9479874965415495,
-    "avg_latency_ms": 8821.55,
+    "avg_latency_ms": 7868.75,
     "rejection_accuracy": 1.0,
     "correct_rejections": 2,
     "total_should_reject": 2
@@ -44,7 +44,7 @@
     "recall_at_3": 25.000000000000007,
     "recall_at_5": 13.33333333333333,
     "hit_rate": 0.0,
-    "avg_score_calibrated": 55.886170525985904
+    "avg_score_calibrated": 55.974208036127834
   },
   "details": [
     {
@@ -459,7 +459,7 @@
       "baseline_docs": [
         "附件1陕西电力现货市场交易实施细则（连续试运行V2）",
         "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知（陕西交易〔2025〕126号）",
-        "转载丨陕西省发展和改革委员会关于印发《陕西省2026年电力市场化交易实施方案》的通知（陕发改运行〔2025〕1707号）"
+        "陕西电力交易中心有限公司关于印发《陕西省电力零售市场交易细则（2025年10月修订版）》的通知"
       ],
       "hybrid_docs": []
     },

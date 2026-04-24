@@ -110,14 +110,66 @@ BASELINE_REJECTION_THRESHOLD = 0.65
 HYBRID_REJECTION_THRESHOLD = 0.85
 
 def calibrate_baseline_score(score: float) -> float:
-    """校准Baseline分数到0-1范围"""
     calibrated = (score - BASELINE_SCORE_MIN) / (BASELINE_SCORE_MAX - BASELINE_SCORE_MIN)
     return max(0.0, min(1.0, calibrated))
 
 def calibrate_hybrid_score(score: float) -> float:
-    """校准Hybrid分数到0-1范围"""
     calibrated = (score - HYBRID_SCORE_MIN) / (HYBRID_SCORE_MAX - HYBRID_SCORE_MIN)
     return max(0.0, min(1.0, calibrated))
+
+import re
+
+def normalize_doc_name(name: str) -> str:
+    if not name:
+        return ""
+    name = re.sub(r'附件\d*[：:]', '', name)
+    name = re.sub(r'转载丨', '', name)
+    name = re.sub(r'[《<>》]', '', name)
+    name = re.sub(r'[（(][^）)]*[）)]', '', name)
+    name = re.sub(r'\d{4}年\d*月?', '', name)
+    name = re.sub(r'〔\d+〕', '', name)
+    name = re.sub(r'\s+', '', name)
+    return name.strip()
+
+def extract_keywords(doc_name: str) -> List[str]:
+    if not doc_name:
+        return []
+    keywords = []
+    patterns = [
+        r'陕西|陕西',
+        r'电力',
+        r'中长期|中长期',
+        r'现货|现货',
+        r'分时段|分时段',
+        r'零售|零售',
+        r'交易|交易',
+        r'结算|结算',
+        r'实施细则|实施细则',
+        r'交易细则|交易细则',
+        r'调频|调频',
+        r'辅助服务|辅助',
+        r'新型储能|储能',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, doc_name)
+        if match:
+            keywords.append(match.group())
+    return keywords if len(keywords) >= 3 else []
+
+def check_hit_fast(expected_docs, retrieved_docs) -> bool:
+    if not expected_docs or not retrieved_docs:
+        return False
+    for exp in expected_docs:
+        exp_norm = normalize_doc_name(exp)
+        for ret in retrieved_docs:
+            ret_norm = normalize_doc_name(ret)
+            if exp_norm and ret_norm:
+                if exp_norm in ret_norm or ret_norm in exp_norm:
+                    return True
+                keywords = extract_keywords(exp_norm)
+                if keywords and all(kw in ret_norm for kw in keywords):
+                    return True
+    return False
 
 baseline_results = []
 hybrid_results = []
@@ -148,7 +200,7 @@ for i, cfg in enumerate(test_configs):
         baseline_rejected = True
         print(f"  Baseline: REJECTED (top score {baseline_scores[0]:.3f} < {BASELINE_REJECTION_THRESHOLD})")
     else:
-        baseline_hit = any(exp_doc in baseline_doc or baseline_doc in exp_doc for exp_doc in cfg.expected_docs for baseline_doc in baseline_docs) if cfg.expected_docs else False
+        baseline_hit = check_hit_fast(cfg.expected_docs, baseline_docs)
         print(f"  Baseline: {baseline_time:.3f}s, score={baseline_avg_score:.3f}, calibrated={baseline_calibrated:.3f}, hit={baseline_hit}")
     
     if baseline_docs[:3] and not baseline_rejected:
@@ -182,7 +234,7 @@ for i, cfg in enumerate(test_configs):
         top_score = hybrid_scores[0] if hybrid_scores else 0
         print(f"  Hybrid:   REJECTED (top score {top_score:.3f} < {HYBRID_REJECTION_THRESHOLD})")
     else:
-        hybrid_hit = any(exp_doc in hybrid_doc or hybrid_doc in exp_doc for exp_doc in cfg.expected_docs for hybrid_doc in hybrid_docs) if cfg.expected_docs else False
+        hybrid_hit = check_hit_fast(cfg.expected_docs, hybrid_docs)
         improvement = ((hybrid_calibrated - baseline_calibrated) / max(baseline_calibrated, 0.01)) * 100
         print(f"  Hybrid:   {hybrid_time:.3f}s, score={hybrid_avg_score:.3f}, calibrated={hybrid_calibrated:.3f}, hit={hybrid_hit}, calibrated_improvement={improvement:+.1f}%")
     

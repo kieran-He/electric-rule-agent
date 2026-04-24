@@ -20,6 +20,7 @@ from app.langchain.orchestrator import LangChainQAOrchestrator
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker
 from app.langchain.query_expander import QueryExpander
+from app.langchain.query_rewriter import QueryRewriter
 from app.langchain.reranker_cache import preload_reranker
 
 logger = logging.getLogger(__name__)
@@ -93,17 +94,33 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
                         max_expansions=self.settings.query_expansion_max,
                     )
                 
+                query_rewriter = None
+                if self.settings.query_rewrite_enabled:
+                    from app.langchain.llm import MiniMaxLLMWrapper
+                    try:
+                        llm_wrapper = MiniMaxLLMWrapper()
+                        query_rewriter = QueryRewriter(
+                            llm_wrapper=llm_wrapper,
+                            enabled=True,
+                            min_length=self.settings.query_rewrite_min_length,
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to init QueryRewriter: {e}")
+                
                 self.hybrid_retriever = HybridRetriever(
                     vector_repo=self.repo,
                     bm25_indexer=bm25_indexer,
                     reranker=reranker,
                     query_expander=query_expander,
+                    query_rewriter=query_rewriter,
                     vector_top_k=self.vector_top_k,
                     bm25_top_k=self.bm25_top_k,
                     final_top_k=self.final_top_k,
                     use_query_expansion=self.settings.query_expansion,
                     query_expansion_method=self.settings.query_expansion_method,
                     query_expansion_max=self.settings.query_expansion_max,
+                    use_query_rewrite=self.settings.query_rewrite_enabled,
+                    query_rewrite_keep_original=self.settings.query_rewrite_keep_original,
                 )
                 
                 logger.info(f"Hybrid retriever initialized: {self.hybrid_retriever.get_stats()}")
@@ -185,6 +202,8 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
             "bm25_b": self.settings.bm25_b,
             "query_expansion": self.settings.query_expansion,
             "query_expansion_method": self.settings.query_expansion_method,
+            "query_rewrite": self.settings.query_rewrite_enabled,
+            "query_rewrite_min_length": self.settings.query_rewrite_min_length,
         }
         
         return stats

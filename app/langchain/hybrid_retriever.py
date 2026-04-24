@@ -14,6 +14,7 @@ from app.repository import PolicyChunk, ChromaPolicyRepository
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander
+from app.langchain.query_rewriter import QueryRewriter
 
 logger = logging.getLogger(__name__)
 
@@ -128,24 +129,30 @@ class HybridRetriever:
         bm25_indexer: BM25Indexer,
         reranker: Optional[BGEReranker] = None,
         query_expander: Optional[QueryExpander] = None,
-        vector_top_k: int = 15,
-        bm25_top_k: int = 15,
-        final_top_k: int = 12,
+        query_rewriter: Optional[QueryRewriter] = None,
+        vector_top_k: int = 8,
+        bm25_top_k: int = 8,
+        final_top_k: int = 8,
         use_query_expansion: bool = False,
         query_expansion_method: str = "synonyms",
-        query_expansion_max: int = 5,
+        query_expansion_max: int = 3,
+        use_query_rewrite: bool = False,
+        query_rewrite_keep_original: bool = True,
         rejection_threshold: Optional[float] = None,
     ):
         self.vector_repo = vector_repo
         self.bm25_indexer = bm25_indexer
         self.reranker = reranker or BGEReranker()
         self.query_expander = query_expander
+        self.query_rewriter = query_rewriter
         self.vector_top_k = vector_top_k
         self.bm25_top_k = bm25_top_k
         self.final_top_k = final_top_k
         self.use_query_expansion = use_query_expansion
         self.query_expansion_method = query_expansion_method
         self.query_expansion_max = query_expansion_max
+        self.use_query_rewrite = use_query_rewrite
+        self.query_rewrite_keep_original = query_rewrite_keep_original
         self.rejection_threshold = rejection_threshold
         self._supported_provinces: Optional[List[str]] = None
         
@@ -197,7 +204,8 @@ class HybridRetriever:
                 logger.info(f"Province {province_code} not supported (supported: {supported})")
                 return []
         
-        queries = self._expand_query(query)
+        queries = self._rewrite_query(query)
+        queries = self._expand_queries(queries)
         
         all_candidates: List[PolicyChunk] = []
         
@@ -218,10 +226,15 @@ class HybridRetriever:
             candidates = self._merge_and_deduplicate(vector_chunks, bm25_chunks)
             all_candidates = self._merge_and_deduplicate(all_candidates, candidates)
         
+        # Use rewritten query for rerank if available (more precise)
+        rerank_query = queries[-1] if queries else query
+        
         if self.reranker.is_available() and len(all_candidates) > self.final_top_k:
-            final_chunks = self.reranker.rerank(query, all_candidates, top_k=self.final_top_k)
+            final_chunks = self.reranker.rerank(rerank_query, all_candidates, top_k=self.final_top_k)
         else:
             final_chunks = all_candidates[:self.final_top_k]
+        
+        logger.debug(f"Rerank using query: '{rerank_query}' (queries: {queries})")
         
         if self.rejection_threshold is not None and final_chunks:
             if final_chunks[0].score < self.rejection_threshold:
@@ -230,9 +243,70 @@ class HybridRetriever:
         
         return final_chunks
     
+    def _rewrite_query(self, query: str) -> List[str]:
+        """
+        Rewrite query if enabled and triggered.
+        
+        Args:
+            query: Original query
+            
+        Returns:
+            List of queries (original + rewritten if triggered)
+        """
+        if not self.use_query_rewrite or self.query_rewriter is None:
+            return [query]
+        
+        try:
+            result = self.query_rewriter.rewrite(query)
+            if result.triggered:
+                if self.query_rewrite_keep_original:
+                    logger.debug(f"Query rewrite: keeping original + rewritten")
+                    return [query, result.rewritten_query]
+                else:
+                    logger.debug(f"Query rewrite: using rewritten only")
+                    return [result.rewritten_query]
+            else:
+                logger.debug(f"Query rewrite not triggered: {result.trigger_reason}")
+                return [query]
+        except Exception as e:
+            logger.warning(f"Query rewrite failed: {e}, using original query")
+            return [query]
+    
+    def _expand_queries(self, queries: List[str]) -> List[str]:
+        """
+        Expand queries if enabled.
+        
+        Args:
+            queries: List of queries (may include rewritten)
+            
+        Returns:
+            List of expanded queries
+        """
+        if not self.use_query_expansion or self.query_expander is None:
+            return queries
+        
+        all_expanded = []
+        for q in queries:
+            try:
+                expanded = self.query_expander.expand(q, self.query_expansion_method)
+                all_expanded.extend(expanded)
+            except Exception as e:
+                logger.warning(f"Query expansion failed for '{q}': {e}")
+                all_expanded.append(q)
+        
+        seen = set()
+        unique = []
+        for q in all_expanded:
+            if q not in seen:
+                seen.add(q)
+                unique.append(q)
+        
+        logger.debug(f"Queries expanded: {len(queries)} -> {len(unique)}")
+        return unique
+    
     def _expand_query(self, query: str) -> List[str]:
         """
-        Expand query if enabled.
+        Expand query if enabled (legacy method, deprecated).
         
         Args:
             query: Original query
@@ -280,10 +354,15 @@ class HybridRetriever:
             "reranker_model": self.reranker.get_model_name(),
             "query_expansion": self.use_query_expansion,
             "query_expansion_method": self.query_expansion_method,
+            "query_rewrite": self.use_query_rewrite,
+            "query_rewrite_keep_original": self.query_rewrite_keep_original,
             "rejection_threshold": self.rejection_threshold,
         }
         
         if self.query_expander:
             stats["query_expander_stats"] = self.query_expander.get_stats()
+        
+        if self.query_rewriter:
+            stats["query_rewriter_stats"] = self.query_rewriter.get_stats()
         
         return stats

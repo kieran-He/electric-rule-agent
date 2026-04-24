@@ -16,10 +16,14 @@ class QueryService:
         self._langchain_orchestrator = None
 
     def _get_orchestrator(self, db: Session):
-        """Get orchestrator based on USE_LANGCHAIN flag."""
+        """Get orchestrator based on USE_LANGCHAIN and USE_HYBRID_RETRIEVAL flags."""
         if self.settings.use_langchain:
-            from app.langchain.orchestrator import LangChainQAOrchestrator
-            return LangChainQAOrchestrator(db=db, settings=self.settings)
+            if self.settings.use_hybrid_retrieval:
+                from app.langchain.orchestrator_hybrid import HybridQAOrchestrator
+                return HybridQAOrchestrator(db=db, settings=self.settings)
+            else:
+                from app.langchain.orchestrator import LangChainQAOrchestrator
+                return LangChainQAOrchestrator(db=db, settings=self.settings)
         else:
             return QAOrchestrator(db=db, settings=self.settings)
 
