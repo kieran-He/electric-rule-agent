@@ -1,0 +1,20 @@
+{
+  "experiment": "baseline_hybrid_100sn",
+  "timestamp": "2026-04-24 13:20:20",
+  "baseline_scores": {
+    "faithfulness": {},
+    "answer_relevancy": {},
+    "context_precision": {},
+    "avg_faithfulness": 0,
+    "avg_answer_relevancy": 0,
+    "avg_context_precision": 0
+  },
+  "hybrid_scores": {
+    "faithfulness": {},
+    "answer_relevancy": {},
+    "context_precision": {},
+    "avg_faithfulness": 0,
+    "avg_answer_relevancy": 0,
+    "avg_context_precision": 0
+  }
+}

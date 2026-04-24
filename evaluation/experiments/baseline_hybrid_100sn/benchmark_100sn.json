@@ -1,0 +1,1128 @@
+{
+  "version": "v2.0_sn_only",
+  "generated_at": "2026-04-23",
+  "total_count": 100,
+  "distribution": {
+    "clause_qa": 50,
+    "flow_qa": 20,
+    "settlement_qa": 20,
+    "rejection": 10
+  },
+  "province_scope": "SN",
+  "notes": "只包含陕西省文档相关问题，不包含跨省对比",
+  "questions": [
+    {
+      "question_id": "q001",
+      "question": "陕西发电侧中长期合同签约比例要求是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "签约比例",
+        "燃煤发电",
+        "60%",
+        "年度",
+        "月度"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q002",
+      "question": "陕西燃煤发电企业年度签约比例不低于多少？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "燃煤发电",
+        "年度签约",
+        "60%",
+        "上网电量"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q003",
+      "question": "陕西燃煤发电企业月度签约比例不低于多少？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "月度签约",
+        "80%",
+        "市场化"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q004",
+      "question": "陕西风电企业上网电量如何参与市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "风电企业",
+        "上网电量",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q005",
+      "question": "陕西光伏发电企业上网电量是否全部进入市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "光伏发电",
+        "上网电量",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q006",
+      "question": "陕西分布式新能源可以选择哪些方式参与市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "分布式新能源",
+        "虚拟电厂",
+        "价格接受者"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q007",
+      "question": "陕西独立储能电站如何参与市场交易？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "独立储能",
+        "市场交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q008",
+      "question": "陕西用电侧中长期合同签约比例要求是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "用电侧",
+        "签约比例"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q009",
+      "question": "陕西10千伏以上工商业用户是否必须参与市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "10千伏",
+        "工商业用户",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q010",
+      "question": "陕西电力用户可以选择批发市场还是零售市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "批发市场",
+        "零售市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q011",
+      "question": "陕西电网企业代理购电的对象是谁？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "电网企业",
+        "代理购电"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q012",
+      "question": "陕西2026年电力市场有哪些经营主体？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "经营主体",
+        "发电企业",
+        "电力用户"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q013",
+      "question": "陕西售电公司市场注册条件是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "售电公司",
+        "市场注册",
+        "履约保函"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q014",
+      "question": "陕西虚拟电厂市场注册条件是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "市场注册"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q015",
+      "question": "陕西并网自备电厂可以参与市场吗？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "并网自备电厂",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q016",
+      "question": "陕西2026年批发市场交易细分至多少个时段？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "批发市场",
+        "24个时段"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q017",
+      "question": "陕西经营主体签订中长期合同应考虑哪些因素？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "中长期合同",
+        "电网供需"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q018",
+      "question": "陕西电力市场结算周期是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "结算周期",
+        "日清",
+        "月结"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q019",
+      "question": "陕西发电企业结算电费如何计算？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "发电企业",
+        "结算电费"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q020",
+      "question": "陕西新能源企业结算方式是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "新能源企业",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q021",
+      "question": "陕西电力市场价格上限如何规定？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "价格上限",
+        "价格机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q022",
+      "question": "陕西现货市场价格形成机制是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "现货市场",
+        "价格形成"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q023",
+      "question": "陕西中长期交易价格如何确定？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "中长期交易",
+        "价格"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q024",
+      "question": "陕西新能源可持续发展价格结算机制是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "新能源",
+        "价格结算机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q025",
+      "question": "陕西分布式光伏参与市场方式有哪些？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "分布式光伏",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q026",
+      "question": "陕西风电企业如何参与中长期交易？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "风电企业",
+        "中长期交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q027",
+      "question": "陕西新型储能参与市场交易的条件是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "新型储能",
+        "市场交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q028",
+      "question": "陕西配建储能如何参与市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "配建储能",
+        "市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q029",
+      "question": "陕西独立储能电站可参与哪些市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "独立储能电站",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q030",
+      "question": "陕西虚拟电厂聚合分布式新能源的条件是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "聚合",
+        "分布式新能源"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q031",
+      "question": "陕西虚拟电厂聚合负荷类资源的要求是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "负荷类资源"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q032",
+      "question": "陕西售电公司履约保函缴纳要求是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "售电公司",
+        "履约保函"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q033",
+      "question": "陕西电力市场主体违约如何处理？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "违约",
+        "履约保函"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q034",
+      "question": "陕西中长期交易合同应明确哪些要素？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "中长期合同",
+        "分时电量"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q035",
+      "question": "陕西跨省跨区交易如何衔接省内市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "跨省跨区交易",
+        "省内市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q036",
+      "question": "陕西2026年电力市场化实施方案的目标是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "实施方案",
+        "目标"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q037",
+      "question": "陕西如何发挥中长期市场稳定器作用？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "中长期市场",
+        "稳定器"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q038",
+      "question": "陕西电力市场管理委员会的作用是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "市场管理委员会"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q039",
+      "question": "陕西发改委在电力市场建设中的职责是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "发改委",
+        "电力市场建设"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q040",
+      "question": "陕西统调水电上网电量如何进入市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "统调水电",
+        "上网电量"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q041",
+      "question": "陕西公用燃煤发电上网电量是否全部进入市场？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "公用燃煤发电",
+        "上网电量"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q042",
+      "question": "陕西电力用户直接参与批发市场的条件是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "批发市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q043",
+      "question": "陕西电力用户选择零售服务关系的要求是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "零售服务关系"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q044",
+      "question": "陕西现货市场连续运行工作方案的内容是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "现货市场",
+        "连续运行"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q045",
+      "question": "陕西现货市场试运行时间安排是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "现货市场",
+        "试运行"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q046",
+      "question": "陕西结算实施细则的主要内容是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "结算实施细则"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q047",
+      "question": "陕西零售市场管理规定是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "零售市场",
+        "管理规定"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q048",
+      "question": "陕西现货市场与中长期市场如何衔接？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "现货市场",
+        "中长期市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q049",
+      "question": "陕西新能源消纳保障机制是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "新能源消纳",
+        "保障机制"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q050",
+      "question": "陕西辅助服务市场规则是什么？",
+      "category": "clause_qa",
+      "expected_answer_keywords": [
+        "辅助服务市场",
+        "调峰"
+      ],
+      "should_reject": false,
+      "expected_intent": "clause_qa"
+    },
+    {
+      "question_id": "q051",
+      "question": "陕西发电企业注册参与电力市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核",
+        "签约"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q052",
+      "question": "陕西电力用户办理市场准入的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "注册",
+        "准入",
+        "审核"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q053",
+      "question": "陕西售电公司注册参与市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "注册",
+        "履约保函"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q054",
+      "question": "陕西独立储能电站参与市场的注册流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "注册",
+        "独立储能"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q055",
+      "question": "陕西虚拟电厂注册参与市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "注册"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q056",
+      "question": "陕西新能源企业办理中长期市场手续的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "新能源企业",
+        "中长期市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q057",
+      "question": "陕西电力用户从注册到交易的完整流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "注册",
+        "交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q058",
+      "question": "陕西储能主体准入现货市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "储能主体",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q059",
+      "question": "陕西售电公司办理现货市场手续的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "售电公司",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q060",
+      "question": "陕西发电企业办理现货市场手续的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "发电企业",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q061",
+      "question": "陕西虚拟电厂准入现货市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q062",
+      "question": "陕西独立储能准入中长期市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "独立储能",
+        "中长期市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q063",
+      "question": "陕西新能源企业准入现货市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "新能源企业",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q064",
+      "question": "陕西电力用户准入现货市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "现货市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q065",
+      "question": "陕西售电公司准入零售市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "售电公司",
+        "零售市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q066",
+      "question": "陕西虚拟电厂聚合分布式新能源的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "聚合"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q067",
+      "question": "陕西独立储能电站办理市场注册的步骤是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "独立储能电站",
+        "市场注册"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q068",
+      "question": "陕西电力用户建立零售服务关系的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "零售服务关系"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q069",
+      "question": "陕西新能源企业参与绿色电力交易的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "新能源企业",
+        "绿色电力交易"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q070",
+      "question": "陕西储能参与辅助服务市场的流程是什么？",
+      "category": "flow_qa",
+      "expected_answer_keywords": [
+        "储能",
+        "辅助服务市场"
+      ],
+      "should_reject": false,
+      "expected_intent": "flow_qa"
+    },
+    {
+      "question_id": "q071",
+      "question": "陕西电力市场结算周期是多少？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "日清",
+        "月结"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q072",
+      "question": "陕西发电企业结算电费的计算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "发电企业",
+        "结算电费"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q073",
+      "question": "陕西电力用户结算电费的计算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "电力用户",
+        "结算电费"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q074",
+      "question": "陕西现货市场结算规则是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "现货市场",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q075",
+      "question": "陕西中长期交易结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "中长期交易",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q076",
+      "question": "陕西新能源企业结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "新能源企业",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q077",
+      "question": "陕西虚拟电厂结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "虚拟电厂",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q078",
+      "question": "陕西独立储能结算电费如何计算？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "独立储能",
+        "结算电费"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q079",
+      "question": "陕西售电公司结算方式是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "售电公司",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q080",
+      "question": "陕西电力市场日清结算的具体流程是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "日清",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q081",
+      "question": "陕西电力市场月结结算的具体流程是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "月结",
+        "结算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q082",
+      "question": "陕西发电侧结算偏差处理规则是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "发电侧",
+        "结算偏差"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q083",
+      "question": "陕西用电侧结算偏差处理规则是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "用电侧",
+        "结算偏差"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q084",
+      "question": "陕西电力市场结算计量要求是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "计量要求",
+        "计量装置"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q085",
+      "question": "陕西电力市场结算数据来源是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算数据",
+        "计量数据"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q086",
+      "question": "陕西电力市场结算争议处理流程是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算争议",
+        "申诉"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q087",
+      "question": "陕西电力市场结算保证金管理规则是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算保证金"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q088",
+      "question": "陕西电力市场结算账单生成流程是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算账单"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q089",
+      "question": "陕西电力市场结算资金流转流程是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算资金",
+        "流转"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q090",
+      "question": "陕西电力市场结算清算规则是什么？",
+      "category": "settlement_qa",
+      "expected_answer_keywords": [
+        "结算清算"
+      ],
+      "should_reject": false,
+      "expected_intent": "settlement_qa"
+    },
+    {
+      "question_id": "q091",
+      "question": "美国电力市场的监管政策是什么？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q092",
+      "question": "请介绍一下中国股市的最新政策",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q093",
+      "question": "新能源汽车补贴政策有哪些？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q094",
+      "question": "如何办理营业执照？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "无法回答"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q095",
+      "question": "广东省电力市场交易规则是什么？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "广东省"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q096",
+      "question": "山东省电力现货市场运行情况如何？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "山东省"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q097",
+      "question": "江苏省电力中长期合同签约比例要求是什么？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "江苏省"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q098",
+      "question": "北京电力市场建设进展如何？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "北京"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q099",
+      "question": "上海市电力市场交易规则是什么？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "上海市"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    },
+    {
+      "question_id": "q100",
+      "question": "浙江省电力市场结算周期是多少？",
+      "category": "rejection",
+      "expected_answer_keywords": [
+        "未检索到",
+        "浙江省"
+      ],
+      "should_reject": true,
+      "expected_intent": "rejection"
+    }
+  ]
+}

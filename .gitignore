@@ -6,8 +6,9 @@ __pycache__/
 .pytest_cache/
 tests/.tmp/
 data/chroma/
+data/processed/*.log
 temp/
-
+ 
 .tmp_push/
-
+ 
 .tmp_push/

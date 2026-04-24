@@ -1,0 +1,55 @@
+{
+  "experiment": "baseline_vs_hybrid_100sn",
+  "version": "v1.0",
+  "created_at": "2026-04-24",
+  "description": "Full RAG evaluation comparing Baseline (Vector-only) vs Hybrid (Vector+BM25+Rerank) on 100 Shaanxi questions",
+  "dataset": {
+    "path": "evaluation/benchmark.json",
+    "size": 100,
+    "province_scope": "SN",
+    "distribution": {
+      "clause_qa": 50,
+      "flow_qa": 20,
+      "settlement_qa": 20,
+      "rejection": 10
+    }
+  },
+  "models": {
+    "embedding": "BAAI/bge-large-zh-v1.5",
+    "reranker": "BAAI/bge-reranker-base",
+    "llm": "deepseek-chat",
+    "ragas_llm": "MiniMax"
+  },
+  "retrieval": {
+    "baseline": {
+      "method": "vector_only",
+      "top_k": 12
+    },
+    "hybrid": {
+      "method": "vector_bm25_rerank",
+      "vector_top_k": 15,
+      "bm25_top_k": 15,
+      "final_top_k": 12,
+      "bm25_k1": 1.5,
+      "bm25_b": 0.6
+    }
+  },
+  "calibration": {
+    "baseline_score_range": [0.5, 0.85],
+    "hybrid_score_range": [0.6, 0.99],
+    "baseline_rejection_threshold": 0.65,
+    "hybrid_rejection_threshold": 0.85
+  },
+  "metrics": {
+    "retrieval": ["recall@3", "recall@5", "precision@k", "hit_rate", "avg_score", "rejection_accuracy"],
+    "generation": ["faithfulness", "answer_relevancy", "context_precision"]
+  },
+  "time_estimate": {
+    "initialization": "10s",
+    "baseline_retrieval_generation": "~10min",
+    "hybrid_retrieval_generation": "~20min",
+    "ragas_evaluation": "~25min",
+    "report_generation": "1min",
+    "total": "~55-60min"
+  }
+}

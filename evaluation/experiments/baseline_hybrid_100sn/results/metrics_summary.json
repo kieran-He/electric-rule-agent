@@ -1,0 +1,51 @@
+{
+  "experiment": "baseline_hybrid_100sn",
+  "timestamp": "2026-04-24 13:20:20",
+  "comparison": {
+    "avg_score_calibrated": {
+      "baseline": 0.5061501585301899,
+      "hybrid": 0.8168632519448924,
+      "improvement": 61.38753256879001
+    },
+    "avg_latency_ms": {
+      "baseline": 16992.15,
+      "hybrid": 21790.94
+    },
+    "keywords_hit_rate": {
+      "baseline": 0.92,
+      "hybrid": 0.9,
+      "improvement": -2.1739130434782625
+    },
+    "rejection_accuracy": {
+      "baseline": 0.4,
+      "hybrid": 0.9,
+      "improvement": 125.0
+    }
+  },
+  "ragas_comparison": {
+    "faithfulness": {
+      "baseline": 0,
+      "hybrid": 0,
+      "improvement": 0.0
+    },
+    "answer_relevancy": {
+      "baseline": 0,
+      "hybrid": 0,
+      "improvement": 0.0
+    },
+    "context_precision": {
+      "baseline": 0,
+      "hybrid": 0,
+      "improvement": 0.0
+    }
+  },
+  "time_summary": {
+    "baseline_total_seconds": 1699.3174767494202,
+    "hybrid_total_seconds": 2179.200259447098,
+    "reranker_preload_seconds": 7.798633813858032,
+    "ragas_baseline_seconds": 0.7808198928833008,
+    "ragas_hybrid_seconds": 0.6722867488861084,
+    "contexts_baseline_seconds": 1.215439796447754,
+    "contexts_hybrid_seconds": 839.7949504852295
+  }
+}

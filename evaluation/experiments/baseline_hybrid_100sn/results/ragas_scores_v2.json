@@ -1,0 +1,40 @@
+{
+  "experiment": "baseline_hybrid_100sn",
+  "timestamp": "2026-04-24 15:08:38",
+  "evaluation_method": "ragas_0.2.7 + ChatAnthropic (MiniMax)",
+  "sample_size": 10,
+  "baseline_scores": {
+    "faithfulness": {
+      "0": 0.6666666666666666,
+      "1": NaN,
+      "2": 1.0,
+      "3": NaN,
+      "4": NaN,
+      "5": 0.9,
+      "6": NaN,
+      "7": 0.6,
+      "8": NaN,
+      "9": 1.0
+    },
+    "avg_faithfulness": NaN
+  },
+  "hybrid_scores": {
+    "faithfulness": {
+      "0": 1.0,
+      "1": NaN,
+      "2": 1.0,
+      "3": NaN,
+      "4": NaN,
+      "5": 1.0,
+      "6": NaN,
+      "7": 0.8571428571428571,
+      "8": NaN,
+      "9": 0.8
+    },
+    "avg_faithfulness": NaN
+  },
+  "time_seconds": {
+    "baseline": 181.46277475357056,
+    "hybrid": 181.37290740013123
+  }
+}
