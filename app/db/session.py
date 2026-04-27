@@ -17,6 +17,17 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 def init_db() -> None:
-    from app.db.models import clause, conversation_state, document, evaluation_record, evaluation_session, rule_tag, structured_rule, trace_record  # noqa: F401
+    from app.db.models import (  # noqa: F401
+        clause,
+        conversation_state,
+        conversation_turn,
+        document,
+        evaluation_record,
+        evaluation_session,
+        metrics_record,
+        rule_tag,
+        structured_rule,
+        trace_record,
+    )
 
     Base.metadata.create_all(bind=engine)

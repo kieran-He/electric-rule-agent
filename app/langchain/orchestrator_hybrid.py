@@ -6,13 +6,15 @@ Uses configurable parameters from settings.
 """
 from __future__ import annotations
 
+import time
 import uuid
-from typing import Any, List
+from typing import Any, List, TYPE_CHECKING
 import logging
 
 from sqlalchemy.orm import Session
 
 from app.config import settings as global_settings
+from app.core.metrics import metrics_store
 from app.repository import ChromaPolicyRepository, PolicyChunk
 from app.schemas.answer import CitationItem, QueryAnswer
 from app.schemas.query import QueryRequest
@@ -22,6 +24,8 @@ from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker
 from app.langchain.query_expander import QueryExpander
 from app.langchain.query_rewriter import QueryRewriter
 from app.langchain.reranker_cache import preload_reranker
+if TYPE_CHECKING:
+    from app.services.trace_service import TraceService
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +44,10 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
     - bm25_b: Document length normalization (default 0.6)
     - query_expansion: Enable query expansion (default false)
     - query_expansion_method: Expansion method (default synonyms)
+    
+    Observability Storage:
+    - metrics_record: Aggregated metrics for historical queries and performance analysis
+    - trace_record: Detailed per-request traces with query content and retrieved docs
     """
     
     def __init__(
@@ -154,25 +162,138 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
         else:
             return super()._retrieve(query, province_codes, top_k)
     
-    def run(self, req: QueryRequest) -> QueryAnswer:
+    def _generate_answer_with_tokens(
+        self,
+        query: str,
+        chunks: List[PolicyChunk],
+        province_code: str,
+        history: list[str] = None,
+    ) -> tuple[str, int, int]:
+        """
+        Generate answer using LangChain LLM with token counts.
+        
+        Args:
+            query: User query
+            chunks: Retrieved chunks
+            province_code: Province code for context
+            history: Conversation history list
+            
+        Returns:
+            Tuple of (answer string, input_tokens, output_tokens)
+        """
+        from app.langchain.retriever_wrapper import format_chunks_for_context
+        
+        if not chunks:
+            return "未检索到相关文档，无法回答该问题。请尝试更换关键词或联系管理员确认文档库是否完整。", 0, 0
+        
+        provincial_context = format_chunks_for_context(chunks)
+        global_context = "- 无通用证据"
+        history_text = "\n".join(history[-6:]) if history else ""
+        
+        user_content = f"""问题: {query}
+
+省级证据({province_code}):
+{provincial_context}
+
+通用证据:
+{global_context}
+
+历史对话:
+{history_text}
+
+请根据上述证据回答问题。"""
+        
+        system_prompt = """你是电力政策问答助手。只能根据提供的证据回答，禁止编造。如果证据不足，明确说明"未检索到充分依据"。
+
+回答要求：
+1. 基于证据内容回答，不要添加证据中没有的信息
+2. 引用证据时标注来源文档名称
+3. 如果问题涉及多个省份，分别说明各省份的政策
+4. 如果证据不足，明确告知用户并建议补充检索"""
+        
+        try:
+            answer, input_tokens, output_tokens = self.llm_wrapper.invoke(user_content, system=system_prompt)
+            if not answer:
+                return self._build_mock_answer(query, chunks), input_tokens, output_tokens
+            return answer, input_tokens, output_tokens
+        except Exception as e:
+            logger.error(f"LLM invoke failed: {e}")
+            return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0
+    
+    def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None) -> QueryAnswer:
         """
         Execute QA flow with hybrid retrieval.
         
         Args:
             req: QueryRequest
+            history: Conversation history list
+            trace_service: TraceService for recording
             
         Returns:
             QueryAnswer
         """
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
+        start_time = time.time()
         
+        rewrite_result = None
+        if self.hybrid_retriever and self.hybrid_retriever.query_rewriter:
+            rewrite_result = self.hybrid_retriever.query_rewriter.rewrite(req.query)
+        
+        retrieval_start = time.time()
         chunks = self._retrieve(req.query, req.province_codes, req.top_k)
+        retrieval_latency = int((time.time() - retrieval_start) * 1000)
+        metrics_store.record_latency(retrieval_latency, "retrieval")
         
         province_code = req.province_codes[0] if req.province_codes else "SN"
-        answer = self._generate_answer(req.query, chunks, province_code)
+        
+        llm_start = time.time()
+        answer, input_tokens, output_tokens = self._generate_answer_with_tokens(
+            req.query, chunks, province_code, history or []
+        )
+        llm_latency = int((time.time() - llm_start) * 1000)
+        metrics_store.record_latency(llm_latency, "llm")
+        metrics_store.record_tokens(input_tokens, output_tokens)
         
         citations = self._build_citations(chunks) if req.need_citation else []
         used_documents = [c.doc_name for c in citations]
+        
+        total_latency = int((time.time() - start_time) * 1000)
+        metrics_store.record_latency(total_latency, "total")
+        metrics_store.record_query(province_code)
+        
+        try:
+            metrics_store.save_to_db(
+                db=self.db,
+                trace_id=trace_id,
+                session_id=req.session_id,
+                request_id=getattr(req, 'request_id', None),
+                user_id=getattr(req, 'user_id', None),
+                retrieval_latency_ms=retrieval_latency,
+                llm_latency_ms=llm_latency,
+                total_latency_ms=total_latency,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                province_code=province_code,
+                success=True,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save metrics to db: {e}")
+        
+        if trace_service:
+            trace_service.save_trace(
+                trace_id=trace_id,
+                session_id=req.session_id,
+                raw_query=req.query,
+                rewritten_query=rewrite_result.rewritten_query if rewrite_result and rewrite_result.triggered else None,
+                intent="clause_qa",
+                retrieved_doc_ids=[int(c.metadata.get("doc_id", 0)) for c in chunks if c.metadata.get("doc_id")],
+                rerank_scores=[c.score for c in chunks],
+                latency_ms=total_latency,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                retrieval_latency_ms=retrieval_latency,
+                llm_latency_ms=llm_latency,
+            )
         
         return QueryAnswer(
             answer=answer,

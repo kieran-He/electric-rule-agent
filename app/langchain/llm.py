@@ -82,16 +82,16 @@ class MiniMaxLLMWrapper:
             )
         return self._client
 
-    def invoke(self, prompt: str, system: Optional[str] = None) -> str:
+    def invoke(self, prompt: str, system: Optional[str] = None) -> tuple[str, int, int]:
         """
-        Invoke LLM and return text content.
+        Invoke LLM and return text content with token counts.
 
         Args:
             prompt: User input prompt
             system: System prompt (optional)
 
         Returns:
-            Generated text content (thinking blocks filtered out)
+            Tuple of (generated text content, input_tokens, output_tokens)
         """
         client = self._get_client()
 
@@ -103,8 +103,10 @@ class MiniMaxLLMWrapper:
 
         response = client.invoke(messages)
 
-        # Filter out thinking blocks, only return text
-        # Response.content can be list of dicts or objects
+        token_usage = response.response_metadata.get("token_usage", {})
+        input_tokens = token_usage.get("prompt_tokens", 0)
+        output_tokens = token_usage.get("completion_tokens", 0)
+
         text_content = ""
         for block in response.content:
             if isinstance(block, dict):
@@ -116,4 +118,18 @@ class MiniMaxLLMWrapper:
             elif isinstance(block, str):
                 text_content += block
 
-        return text_content.strip()
+        return text_content.strip(), input_tokens, output_tokens
+    
+    def invoke_text(self, prompt: str, system: Optional[str] = None) -> str:
+        """
+        Invoke LLM and return only text content (backward compatible).
+
+        Args:
+            prompt: User input prompt
+            system: System prompt (optional)
+
+        Returns:
+            Generated text content
+        """
+        text, _, _ = self.invoke(prompt, system)
+        return text

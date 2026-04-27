@@ -20,4 +20,5 @@ class ConversationState(Base):
     current_doc_scope: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_intent: Mapped[str | None] = mapped_column(String(64), nullable=True)
     last_question: Mapped[str | None] = mapped_column(Text, nullable=True)
+    history_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)

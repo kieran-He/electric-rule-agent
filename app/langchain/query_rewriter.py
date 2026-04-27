@@ -109,7 +109,7 @@ class QueryRewriter:
         
         try:
             prompt = f"用户查询：{query}\n\n请改写此查询："
-            result = self.llm.invoke(prompt, system=self.SYSTEM_PROMPT)
+            result = self.llm.invoke_text(prompt, system=self.SYSTEM_PROMPT)
             
             rewritten = self._parse_result(result, query)
             

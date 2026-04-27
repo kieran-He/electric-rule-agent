@@ -52,6 +52,8 @@ class Settings:
     query_rewrite_enabled: bool = _env("QUERY_REWRITE_ENABLED", "false").lower() == "true"
     query_rewrite_min_length: int = int(_env("QUERY_REWRITE_MIN_LENGTH", "10"))
     query_rewrite_keep_original: bool = _env("QUERY_REWRITE_KEEP_ORIGINAL", "true").lower() == "true"
+    feishu_webhook_url: str = _env("FEISHU_WEBHOOK_URL", "")
+    feishu_alert_enabled: bool = _env("FEISHU_ALERT_ENABLED", "false").lower() == "true"
 
     @property
     def is_sqlite(self) -> bool:

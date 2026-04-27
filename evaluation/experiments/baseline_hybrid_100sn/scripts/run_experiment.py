@@ -123,7 +123,7 @@ def generate_answer(query: str, chunks: List, province_code: str, llm_wrapper) -
 4. 如果证据不足，明确告知用户并建议补充检索"""
 
     try:
-        answer = llm_wrapper.invoke(user_content, system=system_prompt)
+        answer, _, _ = llm_wrapper.invoke(user_content, system=system_prompt)
         return answer
     except Exception as e:
         return f"LLM服务暂时不可用: {str(e)[:100]}"

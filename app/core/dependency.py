@@ -4,6 +4,7 @@ from functools import lru_cache
 
 from app.config import settings
 from app.db.session import SessionLocal, init_db
+from app.services.conversation_service import ConversationService
 from app.services.ingest_service import IngestService
 from app.services.query_service import QueryService
 from app.services.trace_service import TraceService
@@ -25,3 +26,9 @@ def get_ingest_service() -> IngestService:
 def get_trace_service() -> TraceService:
     init_db()
     return TraceService(session_factory=SessionLocal)
+
+
+@lru_cache
+def get_conversation_service() -> ConversationService:
+    init_db()
+    return ConversationService(session_factory=SessionLocal)

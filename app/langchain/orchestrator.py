@@ -78,29 +78,26 @@ class LangChainQAOrchestrator:
         # return create_structured_chat_agent(self.langchain_llm, tools, ...)
         return None
 
-    def run(self, req: QueryRequest) -> QueryAnswer:
+    def run(self, req: QueryRequest, history: list[str] = None) -> QueryAnswer:
         """
         Execute QA flow using LangChain components.
 
         Args:
             req: QueryRequest with query and parameters
+            history: Conversation history list
 
         Returns:
             QueryAnswer with answer and citations
         """
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
 
-        # Step 1: Retrieve chunks
         chunks = self._retrieve(req.query, req.province_codes, req.top_k)
 
-        # Step 2: Generate answer using LangChain LLM
         province_code = req.province_codes[0] if req.province_codes else "SN"
-        answer = self._generate_answer(req.query, chunks, province_code)
+        answer = self._generate_answer(req.query, chunks, province_code, history or [])
 
-        # Step 3: Build citations
         citations = self._build_citations(chunks) if req.need_citation else []
 
-        # Step 4: Build response
         used_documents = [c.doc_name for c in citations]
 
         return QueryAnswer(
@@ -157,6 +154,7 @@ class LangChainQAOrchestrator:
         query: str,
         chunks: List[PolicyChunk],
         province_code: str,
+        history: list[str] = None,
     ) -> str:
         """
         Generate answer using LangChain LLM.
@@ -165,6 +163,7 @@ class LangChainQAOrchestrator:
             query: User query
             chunks: Retrieved chunks
             province_code: Province code for context
+            history: Conversation history list
 
         Returns:
             Generated answer string
@@ -172,12 +171,10 @@ class LangChainQAOrchestrator:
         if not chunks:
             return "未检索到相关文档，无法回答该问题。请尝试更换关键词或联系管理员确认文档库是否完整。"
 
-        # Build context
         provincial_context = format_chunks_for_context(chunks)
         global_context = "- 无通用证据"
-        history = ""
+        history_text = "\n".join(history[-6:]) if history else ""
 
-        # Build prompt
         user_content = f"""问题: {query}
 
 省级证据({province_code}):
@@ -187,7 +184,7 @@ class LangChainQAOrchestrator:
 {global_context}
 
 历史对话:
-{history}
+{history_text}
 
 请根据上述证据回答问题。"""
 
@@ -200,7 +197,7 @@ class LangChainQAOrchestrator:
 4. 如果证据不足，明确告知用户并建议补充检索"""
 
         try:
-            answer = self.llm_wrapper.invoke(user_content, system=system_prompt)
+            answer = self.llm_wrapper.invoke_text(user_content, system=system_prompt)
             if not answer:
                 return self._build_mock_answer(query, chunks)
             return answer
@@ -290,7 +287,7 @@ class LangChainQAOrchestrator:
 4. 不要编造证据中没有的内容"""
 
         try:
-            answer = self.llm_wrapper.invoke(user_content, system=system_prompt)
+            answer = self.llm_wrapper.invoke_text(user_content, system=system_prompt)
         except Exception as e:
             answer = f"跨省对比分析暂时不可用: {str(e)[:100]}"
 

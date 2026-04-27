@@ -1,4 +1,4 @@
-﻿# Feishu Power Policy Bot (Multi-Province)
+# Feishu Power Policy Bot (Multi-Province)
 
 FastAPI service for a Feishu bot that supports:
 
@@ -41,6 +41,28 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - `POST /admin/ingest`: ingest docs into KB (disabled by default; returns 403 when `INGEST_ENABLED=false`).
 - `POST /query`: internal query endpoint.
 - `POST /feishu/webhook`: Feishu callback endpoint.
+
+### Observability APIs
+
+- `GET /metrics`: real-time performance summary (latency, tokens, query counts, errors).
+- `GET /metrics/health`: metrics system health status.
+- `GET /metrics/history?hours=24`: historical performance stats (avg latency, total tokens).
+- `GET /metrics/errors?hours=24`: error count summary.
+- `GET /metrics/province?hours=24`: query distribution by province.
+- `GET /metrics/recent?limit=100`: recent metrics records.
+- `GET /query/trace/{trace_id}`: detailed trace for a specific query.
+
+### Feishu Alert Configuration
+
+Enable real-time error alerts to Feishu group:
+
+```bash
+# Set environment variables
+FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+FEISHU_ALERT_ENABLED=true
+```
+
+When ERROR level logs occur, alerts will be sent to Feishu with trace_id, session_id, request_id context.
 
 ## Recommended Docs Layout
 
