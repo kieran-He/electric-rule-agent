@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import List, Optional
 import logging
 
-from app.repository import PolicyChunk, ChromaPolicyRepository
+from app.core.repository import PolicyChunk, ChromaPolicyRepository
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander

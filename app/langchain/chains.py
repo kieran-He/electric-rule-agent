@@ -11,7 +11,7 @@ from langchain_core.output_parsers import StrOutputParser
 from app.langchain.llm import create_minimax_llm
 from app.langchain.prompts import QA_PROMPT, COMPARE_PROMPT
 from app.langchain.retriever_wrapper import ChromaRepositoryRetriever, format_chunks_for_context
-from app.repository import PolicyChunk
+from app.core.repository import PolicyChunk
 
 
 def build_qa_chain(

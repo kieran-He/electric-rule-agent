@@ -1,4 +1,4 @@
-from app.repository import DeterministicEmbedder
+from app.core.repository import DeterministicEmbedder
 
 
 def test_deterministic_embedder_shape():

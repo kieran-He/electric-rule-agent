@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import time
 
-from app.security import EventDeduplicator, verify_signature, verify_token
+from app.core.security import EventDeduplicator, verify_signature, verify_token
 
 
 def test_verify_token():

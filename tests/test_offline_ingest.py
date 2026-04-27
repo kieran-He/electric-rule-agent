@@ -1,4 +1,4 @@
-from app.ingestion import IngestStats
+from app.services.ingest.document_ingestor import IngestStats
 from tools import offline_ingest
 
 

@@ -10,7 +10,7 @@ from app.config import Settings
 from app.db.models.clause import Clause
 from app.db.models.document import Document
 from app.db.models.rule_tag import RuleTag
-from app.repository import ChromaPolicyRepository
+from app.core.repository import ChromaPolicyRepository
 
 
 class IngestionPipeline:

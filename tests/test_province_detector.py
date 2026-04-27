@@ -1,4 +1,4 @@
-from app.province import ProvinceDetector
+from app.core.province import ProvinceDetector
 
 
 def test_detect_single_province():

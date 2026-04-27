@@ -78,7 +78,7 @@ print("\n[Step 3] 初始化检索组件...")
 print("=" * 70)
 
 from app.config import settings
-from app.repository import ChromaPolicyRepository
+from app.core.repository import ChromaPolicyRepository
 repo = ChromaPolicyRepository(
     persist_directory=settings.chroma_path,
     embedding_model_name=settings.embedding_model,

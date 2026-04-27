@@ -10,9 +10,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.config import settings
-from app.ingest_path import resolve_docs_path
-from app.ingestion import DocumentIngestor
-from app.repository import ChromaPolicyRepository
+from app.services.ingest.path_resolver import resolve_docs_path
+from app.services.ingest.document_ingestor import DocumentIngestor
+from app.core.repository import ChromaPolicyRepository
 
 
 def _str_to_bool(value: str) -> bool:

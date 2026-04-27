@@ -1,4 +1,4 @@
-from app.ingest_path import build_missing_path_hint, resolve_docs_path
+from app.services.ingest.path_resolver import build_missing_path_hint, resolve_docs_path
 
 
 def test_resolve_province_path_with_default_root():

@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+from enum import Enum
 from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+class QueryMode(str, Enum):
+    auto = "auto"
+    single_province = "single_province"
+    province_plus_global = "province_plus_global"
+    multi_province_compare = "multi_province_compare"
+
+
+class KBScope(str, Enum):
+    province = "province"
+    global_scope = "global"
 
 
 class QueryRequest(BaseModel):

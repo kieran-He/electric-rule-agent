@@ -179,7 +179,7 @@ if manifest_path.exists():
 
 print("\n初始化Vector Repository...")
 from app.config import settings
-from app.repository import ChromaPolicyRepository
+from app.core.repository import ChromaPolicyRepository
 repo = ChromaPolicyRepository(
     persist_directory=settings.chroma_path,
     embedding_model_name=settings.embedding_model,
@@ -193,7 +193,7 @@ bm25_docs = bm25.build_index()
 print(f"BM25索引: {bm25_docs}条")
 
 print("\n初始化Province Detector...")
-from app.province import ProvinceDetector
+from app.core.province import ProvinceDetector
 detector = ProvinceDetector()
 print("Province detector: 就绪")
 

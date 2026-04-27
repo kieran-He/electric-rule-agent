@@ -22,3 +22,6 @@ class QueryAnswer(BaseModel):
     trace_id: str
     flow: str | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+QueryResponse = QueryAnswer

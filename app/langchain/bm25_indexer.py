@@ -24,7 +24,7 @@ except ImportError:
     JIEBA_AVAILABLE = False
     jieba = None
 
-from app.repository import PolicyChunk
+from app.core.repository import PolicyChunk
 from app.langchain.bm25_params import BM25WithParams
 
 
@@ -112,11 +112,14 @@ class BM25Indexer:
                     
                     self.documents.append(text)
                     self.metadatas.append({
-                        "source_name": clause.get("source_name", ""),
+                        "doc_name": clause.get("doc_name", ""),
+                        "source_name": clause.get("doc_name", ""),
                         "title_path": clause.get("title_path", ""),
                         "article_no": clause.get("article_no", ""),
                         "policy_level": clause.get("policy_level", "formal"),
                         "file_hash": json_file.stem,
+                        "page_start": clause.get("page_start"),
+                        "page_end": clause.get("page_end"),
                     })
                     total_docs += 1
                     

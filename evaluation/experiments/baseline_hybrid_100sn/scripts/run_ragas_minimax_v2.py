@@ -81,7 +81,7 @@ SAMPLE_SIZE = 3
 
 print("\n[Step 2] 初始化检索组件...")
 from app.config import settings
-from app.repository import ChromaPolicyRepository
+from app.core.repository import ChromaPolicyRepository
 repo = ChromaPolicyRepository(
     persist_directory=settings.chroma_path,
     embedding_model_name=settings.embedding_model,

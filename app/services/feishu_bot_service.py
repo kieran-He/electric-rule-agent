@@ -85,7 +85,19 @@ class FeishuBotService:
             lines.append("\n---")
             lines.append("参考文献：")
             for i, citation in enumerate(answer.citations, 1):
-                doc_info = f"{i}. {citation.doc_name}{citation.title_path}"
+                parts = []
+                if citation.doc_name:
+                    parts.append(citation.doc_name)
+                if citation.title_path:
+                    parts.append(citation.title_path)
+                
+                doc_info = f"{i}. {' > '.join(parts)}"
+                
+                if citation.page_start and citation.page_end:
+                    doc_info += f" (P{citation.page_start}-{citation.page_end})"
+                elif citation.page_start:
+                    doc_info += f" (P{citation.page_start})"
+                
                 lines.append(doc_info)
         return "\n".join(lines)
 

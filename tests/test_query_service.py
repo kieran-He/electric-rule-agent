@@ -1,85 +1,92 @@
-﻿from app.province import ProvinceDetector
-from app.schemas import QueryMode, QueryRequest
-from app.service import PolicyQueryService, QueryPlanner
-from app.session import SessionStore
+﻿from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.schemas.query import QueryRequest
+from app.schemas.answer import QueryAnswer
+from app.services.query_service import QueryService
 
 
-class FakeChunk:
-    def __init__(self, text, metadata):
-        self.text = text
-        self.metadata = metadata
-        self.score = 0.9
+class FakeSession:
+    def __init__(self):
+        self._committed = False
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
+    
+    def commit(self):
+        self._committed = True
+    
+    def scalars(self, stmt):
+        return MagicMock(all=lambda: [])
+    
+    def add(self, obj):
+        pass
+    
+    def flush(self):
+        pass
 
 
-class FakeRepo:
-    def retrieve(self, query, top_k, kb_scope, province_code):
-        if kb_scope == "province" and province_code == "SN":
-            return [
-                FakeChunk(
-                    "陕西中长期交易按月组织开展。",
-                    {
-                        "province_code": "SN",
-                        "source_name": "陕西规则.pdf",
-                        "doc_id": "sn-1",
-                        "policy_level": "province",
-                        "effective_date": "2026-01-01",
-                    },
-                )
-            ]
-        if kb_scope == "global":
-            return [
-                FakeChunk(
-                    "全国规则要求交易公开透明。",
-                    {
-                        "province_code": "",
-                        "source_name": "全国规则.pdf",
-                        "doc_id": "cn-1",
-                        "policy_level": "national",
-                        "effective_date": "2025-01-01",
-                    },
-                )
-            ]
-        return []
-
-
-class FakeGenerator:
-    def generate_answer(self, query, provincial_chunks, global_chunks, history, province_code):
-        return "测试结论"
-
-    def generate_compare_answer(self, query, result_by_province):
-        return "对比结论"
+class FakeOrchestrator:
+    def __init__(self, db, settings):
+        self.db = db
+        self.settings = settings
+    
+    def run(self, req, history=None, trace_service=None):
+        return QueryAnswer(
+            answer="测试结论",
+            citations=[],
+            intent="clause_qa",
+            confidence=0.8,
+            used_documents=["陕西规则.pdf"],
+            trace_id="trace_test",
+            flow=None,
+            warnings=[],
+        )
 
 
 def build_service():
-    return PolicyQueryService(
-        repository=FakeRepo(),
-        generator=FakeGenerator(),
-        detector=ProvinceDetector(),
-        sessions=SessionStore(),
-        planner=QueryPlanner(),
+    settings = SimpleNamespace(
+        chroma_path="./data/chroma",
+        embedding_model="deterministic",
+        hybrid_vector_top_k=8,
+        hybrid_bm25_top_k=8,
+        hybrid_final_top_k=8,
+        reranker_model="BAAI/bge-reranker-large",
+        reranker_preload=False,
+        reranker_max_length=512,
+        bm25_k1=1.5,
+        bm25_b=0.6,
+        query_expansion=False,
+        query_expansion_method="synonyms",
+        query_expansion_max=3,
+        query_rewrite_enabled=False,
+        query_rewrite_min_length=10,
+        query_rewrite_keep_original=True,
     )
+    
+    session_factory = lambda: FakeSession()
+    
+    return QueryService(settings=settings, session_factory=session_factory)
 
 
-def test_auto_mode_resolves_to_province_plus_global():
+def test_query_service_returns_answer():
     service = build_service()
-    req = QueryRequest(query="陕西的交易流程是什么？", session_id="s1", mode=QueryMode.auto)
-    resp = service.process(req)
-    assert resp.mode == QueryMode.province_plus_global
-    assert resp.province_code == "SN"
-    assert len(resp.provincial_evidence) == 1
-    assert len(resp.global_evidence) == 1
-
-
-def test_need_province_confirmation():
-    service = build_service()
-    req = QueryRequest(query="交易流程是什么？", session_id="s2", mode=QueryMode.single_province)
-    resp = service.process(req)
-    assert resp.needs_confirmation is True
-    assert resp.confirmation_question
-
-
-def test_compare_mode_requires_two_provinces():
-    service = build_service()
-    req = QueryRequest(query="比较陕西交易规则", session_id="s3", mode=QueryMode.multi_province_compare)
-    resp = service.process(req)
-    assert resp.needs_confirmation is True
+    
+    with patch('app.services.query_service.HybridQAOrchestrator', FakeOrchestrator):
+        with patch.object(service.conversation_service, 'get_history', return_value=[]):
+            with patch.object(service.conversation_service, 'append_turn'):
+                req = QueryRequest(
+                    query="陕西的交易流程是什么？",
+                    session_id="s1",
+                    province_codes=["SN"],
+                )
+                resp = service.answer(req)
+                
+                assert resp.answer == "测试结论"
+                assert resp.intent == "clause_qa"
+                assert resp.used_documents == ["陕西规则.pdf"]

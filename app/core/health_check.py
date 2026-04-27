@@ -52,7 +52,7 @@ class HealthChecker:
     
     def check_chroma(self) -> HealthStatus:
         try:
-            from app.repository import ChromaPolicyRepository
+            from app.core.repository import ChromaPolicyRepository
             from app.config import settings
             repo = ChromaPolicyRepository(
                 persist_directory=settings.chroma_path,
@@ -67,7 +67,7 @@ class HealthChecker:
     
     def check_llm(self) -> HealthStatus:
         try:
-            from app.generator import LLMClient
+            from app.core.llm_client import LLMClient
             client = LLMClient(
                 api_key=os.getenv("LLM_API_KEY", ""),
                 endpoint=os.getenv("LLM_ENDPOINT", ""),

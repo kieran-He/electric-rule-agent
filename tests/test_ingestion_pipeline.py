@@ -2,7 +2,7 @@ import shutil
 import uuid
 from pathlib import Path
 
-from app.ingestion import DocumentIngestor
+from app.services.ingest.document_ingestor import DocumentIngestor
 
 
 class FakeRepo:

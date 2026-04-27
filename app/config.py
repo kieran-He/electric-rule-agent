@@ -36,8 +36,12 @@ class Settings:
     prefer_draft_default: bool = _env("PREFER_DRAFT_DEFAULT", "false").lower() == "true"
     tesseract_cmd: str = _env("TESSERACT_CMD", "tesseract")
     tessdata_prefix: str = _env("TESSDATA_PREFIX", "")
-    use_langchain: bool = _env("USE_LANGCHAIN", "false").lower() == "true"
-    use_hybrid_retrieval: bool = _env("USE_HYBRID_RETRIEVAL", "false").lower() == "true"
+    ocr_enabled: bool = _env("OCR_ENABLED", "false").lower() == "true"
+    ocr_min_ch_ratio: float = float(_env("OCR_MIN_CH_RATIO", "0.08"))
+    ocr_max_replacement_ratio: float = float(_env("OCR_MAX_REPLACEMENT_RATIO", "0.03"))
+    ocr_empty_page_threshold: float = float(_env("OCR_EMPTY_PAGE_THRESHOLD", "0.3"))
+    province_confidence_threshold: float = float(_env("PROVINCE_CONFIDENCE_THRESHOLD", "0.7"))
+    ingest_index_path: str = _env("INGEST_INDEX_PATH", "./data/chroma/ingest_index.json")
     hybrid_vector_top_k: int = int(_env("HYBRID_VECTOR_TOP_K", "8"))
     hybrid_bm25_top_k: int = int(_env("HYBRID_BM25_TOP_K", "8"))
     hybrid_final_top_k: int = int(_env("HYBRID_FINAL_TOP_K", "8"))

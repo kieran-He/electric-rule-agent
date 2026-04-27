@@ -1,11 +1,12 @@
 """
 Hybrid QA Orchestrator with BM25 + BGE Rerank + Query Expansion
 
-Extends LangChainQAOrchestrator with hybrid retrieval capabilities.
+Standalone orchestrator with hybrid retrieval capabilities.
 Uses configurable parameters from settings.
 """
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from typing import Any, List, TYPE_CHECKING
@@ -15,27 +16,24 @@ from sqlalchemy.orm import Session
 
 from app.config import settings as global_settings
 from app.core.metrics import metrics_store
-from app.repository import ChromaPolicyRepository, PolicyChunk
+from app.core.repository import ChromaPolicyRepository, PolicyChunk
 from app.schemas.answer import CitationItem, QueryAnswer
 from app.schemas.query import QueryRequest
-from app.langchain.orchestrator import LangChainQAOrchestrator
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker
 from app.langchain.query_expander import QueryExpander
 from app.langchain.query_rewriter import QueryRewriter
 from app.langchain.reranker_cache import preload_reranker
+from app.langchain.llm import MiniMaxLLMWrapper
 if TYPE_CHECKING:
     from app.services.trace_service import TraceService
 
 logger = logging.getLogger(__name__)
 
 
-class HybridQAOrchestrator(LangChainQAOrchestrator):
+class HybridQAOrchestrator:
     """
     Hybrid QA Orchestrator with BM25 + BGE Rerank + Query Expansion.
-    
-    Inherits from LangChainQAOrchestrator and replaces the retrieval method
-    with hybrid retrieval (Vector + BM25 + BGE Rerank).
     
     Configurable parameters from settings:
     - reranker_model: BAAI/bge-reranker-large (default)
@@ -60,13 +58,24 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
         final_top_k: int = None,
         disable_thinking: bool = True,
     ):
+        self.db = db
         self.settings = settings or global_settings
         
         vector_top_k = vector_top_k or self.settings.hybrid_vector_top_k
         bm25_top_k = bm25_top_k or self.settings.hybrid_bm25_top_k
         final_top_k = final_top_k or self.settings.hybrid_final_top_k
         
-        super().__init__(db=db, settings=settings, disable_thinking=disable_thinking)
+        self.repo = ChromaPolicyRepository(
+            persist_directory=self.settings.chroma_path,
+            embedding_model_name=self.settings.embedding_model,
+        )
+        
+        self.llm_wrapper = MiniMaxLLMWrapper(
+            api_key=os.getenv("LLM_API_KEY", ""),
+            endpoint=os.getenv("LLM_ENDPOINT", "https://api.minimaxi.com/anthropic"),
+            model=os.getenv("LLM_MODEL", "MiniMax-M2.7"),
+            disable_thinking=disable_thinking,
+        )
         
         self.use_hybrid = use_hybrid
         self.vector_top_k = vector_top_k
@@ -104,11 +113,9 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
                 
                 query_rewriter = None
                 if self.settings.query_rewrite_enabled:
-                    from app.langchain.llm import MiniMaxLLMWrapper
                     try:
-                        llm_wrapper = MiniMaxLLMWrapper()
                         query_rewriter = QueryRewriter(
-                            llm_wrapper=llm_wrapper,
+                            llm_wrapper=self.llm_wrapper,
                             enabled=True,
                             min_length=self.settings.query_rewrite_min_length,
                         )
@@ -140,6 +147,33 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
             logger.warning(f"Failed to init hybrid retriever: {e}, using vector only")
             self.hybrid_retriever = None
     
+    def _retrieve_vector(
+        self,
+        query: str,
+        province_codes: List[str],
+        top_k: int,
+    ) -> List[PolicyChunk]:
+        """Fallback vector-only retrieval."""
+        all_chunks: List[PolicyChunk] = []
+        for province_code in province_codes:
+            chunks = self.repo.retrieve(
+                query=query,
+                top_k=top_k,
+                kb_scope="province",
+                province_code=province_code,
+            )
+            all_chunks.extend(chunks)
+        
+        seen_hashes: set[int] = set()
+        unique_chunks: List[PolicyChunk] = []
+        for chunk in all_chunks:
+            text_hash = hash(chunk.text[:100])
+            if text_hash not in seen_hashes:
+                seen_hashes.add(text_hash)
+                unique_chunks.append(chunk)
+        
+        return unique_chunks[:top_k]
+    
     def _retrieve(
         self,
         query: str,
@@ -160,7 +194,7 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
         if self.hybrid_retriever is not None:
             return self.hybrid_retriever.retrieve(query, province_codes)
         else:
-            return super()._retrieve(query, province_codes, top_k)
+            return self._retrieve_vector(query, province_codes, top_k)
     
     def _generate_answer_with_tokens(
         self,
@@ -222,6 +256,42 @@ class HybridQAOrchestrator(LangChainQAOrchestrator):
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
             return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0
+    
+    def _build_mock_answer(self, query: str, chunks: List[PolicyChunk]) -> str:
+        """Build mock answer when LLM unavailable."""
+        if not chunks:
+            return "未检索到相关文档。"
+        
+        lines = [f"关于您的问题「{query}」，根据检索到的文档："]
+        for i, chunk in enumerate(chunks[:3], 1):
+            source = chunk.metadata.get("source_name", "未知文档")
+            title_path = chunk.metadata.get("title_path", "")
+            article_no = chunk.metadata.get("article_no", "")
+            snippet = chunk.text[:200]
+            lines.append(f"\n{i}. {source}")
+            if title_path:
+                lines.append(f"   位置: {title_path}")
+            if article_no:
+                lines.append(f"   条款: {article_no}")
+            lines.append(f"   内容摘要: {snippet}...")
+        
+        return "\n".join(lines)
+    
+    def _build_citations(self, chunks: List[PolicyChunk]) -> List[CitationItem]:
+        """Build citation items from chunks."""
+        citations: List[CitationItem] = []
+        for chunk in chunks[:8]:
+            citation = CitationItem(
+                doc_name=chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", ""),
+                status=chunk.metadata.get("policy_level", "formal"),
+                title_path=chunk.metadata.get("title_path", ""),
+                article_no=chunk.metadata.get("article_no"),
+                excerpt=chunk.text[:260],
+                page_start=int(chunk.metadata.get("page_start", 0)) if chunk.metadata.get("page_start") else None,
+                page_end=int(chunk.metadata.get("page_end", 0)) if chunk.metadata.get("page_end") else None,
+            )
+            citations.append(citation)
+        return citations
     
     def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None) -> QueryAnswer:
         """

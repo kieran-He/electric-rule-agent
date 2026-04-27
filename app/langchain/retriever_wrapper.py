@@ -5,7 +5,7 @@ Wraps existing ChromaPolicyRepository as LangChain-compatible Retriever.
 """
 from typing import List, Optional
 
-from app.repository import ChromaPolicyRepository, PolicyChunk
+from app.core.repository import ChromaPolicyRepository, PolicyChunk
 
 
 class ChromaRepositoryRetriever:
