@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
@@ -25,9 +25,17 @@ def init_db() -> None:
         evaluation_record,
         evaluation_session,
         metrics_record,
+        processed_message,
         rule_tag,
         structured_rule,
         trace_record,
     )
+
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("SELECT event_id FROM processed_messages LIMIT 1"))
+        except Exception:
+            conn.execute(text("DROP TABLE IF EXISTS processed_messages"))
+            conn.commit()
 
     Base.metadata.create_all(bind=engine)

@@ -5,6 +5,7 @@ from app.db.models.document import Document
 from app.db.models.evaluation_record import EvaluationRecord
 from app.db.models.evaluation_session import EvaluationSession
 from app.db.models.metrics_record import MetricsRecord
+from app.db.models.processed_message import ProcessedMessage
 from app.db.models.rule_tag import RuleTag
 from app.db.models.structured_rule import StructuredRule
 from app.db.models.trace_record import TraceRecord
@@ -17,6 +18,7 @@ __all__ = [
     "EvaluationRecord",
     "EvaluationSession",
     "MetricsRecord",
+    "ProcessedMessage",
     "RuleTag",
     "StructuredRule",
     "TraceRecord",

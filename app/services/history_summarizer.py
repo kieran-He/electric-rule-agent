@@ -67,7 +67,7 @@ class HistorySummarizer:
         try:
             prompt = f"对话历史：\n{conversation_text}\n\n请压缩为不超过{self.max_summary_length}字的摘要："
             
-            summary = self.llm.invoke(prompt, system=self.SYSTEM_PROMPT)
+            summary = self.llm.invoke_text(prompt, system=self.SYSTEM_PROMPT)
             
             # Truncate if exceeds max length
             if len(summary) > self.max_summary_length:

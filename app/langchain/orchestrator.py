@@ -190,11 +190,14 @@ class LangChainQAOrchestrator:
 
         system_prompt = """你是电力政策问答助手。只能根据提供的证据回答，禁止编造。如果证据不足，明确说明"未检索到充分依据"。
 
-回答要求：
-1. 基于证据内容回答，不要添加证据中没有的信息
-2. 引用证据时标注来源文档名称
-3. 如果问题涉及多个省份，分别说明各省份的政策
-4. 如果证据不足，明确告知用户并建议补充检索"""
+回答格式要求：
+1. 直接回答用户问题，正文不要标注来源编号（如"证据来源: 证据1"）
+2. 结构清晰，使用标题和列表组织内容
+3. 如需引用原文，使用引用格式（> 引用内容）
+4. 证据不足时，明确告知用户并建议补充检索
+5. 涉及多省份时，分别说明各省份政策
+
+注意：引用来源会在回答末尾自动展示，无需在正文标注。"""
 
         try:
             answer = self.llm_wrapper.invoke_text(user_content, system=system_prompt)
@@ -227,7 +230,7 @@ class LangChainQAOrchestrator:
     def _build_citations(self, chunks: List[PolicyChunk]) -> List[CitationItem]:
         """Build citation items from chunks."""
         citations: List[CitationItem] = []
-        for chunk in chunks[:5]:
+        for chunk in chunks[:8]:
             citation = CitationItem(
                 doc_name=chunk.metadata.get("source_name", ""),
                 status=chunk.metadata.get("policy_level", "formal"),

@@ -4,6 +4,7 @@ LangChain LLM Component for MiniMax API
 Creates ChatAnthropic instance configured for MiniMax endpoint.
 """
 import os
+import threading
 from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
@@ -71,15 +72,18 @@ class MiniMaxLLMWrapper:
         self.max_tokens = max_tokens
         self.disable_thinking = disable_thinking
         self._client = None
+        self._lock = threading.Lock()
 
     def _get_client(self) -> ChatAnthropic:
         if self._client is None:
-            self._client = create_minimax_llm(
-                api_key=self.api_key,
-                endpoint=self.endpoint,
-                model=self.model,
-                max_tokens=self.max_tokens,
-            )
+            with self._lock:
+                if self._client is None:
+                    self._client = create_minimax_llm(
+                        api_key=self.api_key,
+                        endpoint=self.endpoint,
+                        model=self.model,
+                        max_tokens=self.max_tokens,
+                    )
         return self._client
 
     def invoke(self, prompt: str, system: Optional[str] = None) -> tuple[str, int, int]:

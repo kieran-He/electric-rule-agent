@@ -1,0 +1,2 @@
+{"timestamp": "2026-04-27T03:48:10.354127Z", "level": "INFO", "logger": "test_logger", "message": "Test message with trace_id", "module": "<string>", "function": "<module>", "line": 15, "trace_id": "trace_test_123", "session_id": "session_test_456"}
+{"timestamp": "2026-04-27T04:00:57.893492Z", "level": "INFO", "logger": "test", "message": "Test log message", "module": "<string>", "function": "<module>", "line": 13}

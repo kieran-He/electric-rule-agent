@@ -54,6 +54,9 @@ class Settings:
     query_rewrite_keep_original: bool = _env("QUERY_REWRITE_KEEP_ORIGINAL", "true").lower() == "true"
     feishu_webhook_url: str = _env("FEISHU_WEBHOOK_URL", "")
     feishu_alert_enabled: bool = _env("FEISHU_ALERT_ENABLED", "false").lower() == "true"
+    feishu_app_id: str = _env("FEISHU_APP_ID", "")
+    feishu_app_secret: str = _env("FEISHU_APP_SECRET", "")
+    feishu_max_workers: int = int(_env("FEISHU_MAX_WORKERS", "10"))
 
     @property
     def is_sqlite(self) -> bool:
