@@ -3,17 +3,20 @@ from __future__ import annotations
 import json
 import logging
 import re
+import uuid
 from datetime import datetime, timedelta
 from typing import Callable
 
 import lark_oapi as lark
-from lark_oapi.api.im.v1 import ReplyMessageRequest, ReplyMessageRequestBody, UpdateMessageRequest, UpdateMessageRequestBody
+from lark_oapi.api.im.v1 import PatchMessageRequest, PatchMessageRequestBody, ReplyMessageRequest, ReplyMessageRequestBody
 from sqlalchemy.orm import Session
 
+from app.core.logging_context import set_trace_id, set_session_id
 from app.db.models.processed_message import ProcessedMessage
 from app.schemas.answer import QueryAnswer
 from app.schemas.query import QueryRequest
 from app.services.query_service import QueryService
+from app.utils.markdown_to_feishu import MarkdownToFeishuConverter
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +33,7 @@ class FeishuBotService:
         self.client = client
         self.query_service = QueryService(settings, session_factory)
         self._processed_ttl = 86400
+        self._md_converter = MarkdownToFeishuConverter()
 
     def _get_session_id(self, open_id: str) -> str:
         return f"feishu:{open_id}"
@@ -80,26 +84,7 @@ class FeishuBotService:
         return text.strip()
 
     def _format_reply(self, answer: QueryAnswer) -> str:
-        lines = [answer.answer]
-        if answer.citations:
-            lines.append("\n---")
-            lines.append("参考文献：")
-            for i, citation in enumerate(answer.citations, 1):
-                parts = []
-                if citation.doc_name:
-                    parts.append(citation.doc_name)
-                if citation.title_path:
-                    parts.append(citation.title_path)
-                
-                doc_info = f"{i}. {' > '.join(parts)}"
-                
-                if citation.page_start and citation.page_end:
-                    doc_info += f" (P{citation.page_start}-{citation.page_end})"
-                elif citation.page_start:
-                    doc_info += f" (P{citation.page_start})"
-                
-                lines.append(doc_info)
-        return "\n".join(lines)
+        return answer.answer
 
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:
@@ -107,6 +92,16 @@ class FeishuBotService:
         
         message = data.event.message
         message_id = message.message_id
+        
+        open_id = ""
+        if data.event.sender and data.event.sender.sender_id:
+            open_id = data.event.sender.sender_id.open_id or ""
+        
+        session_id = self._get_session_id(open_id)
+        trace_id = f"trace_{uuid.uuid4().hex[:12]}"
+        
+        set_trace_id(trace_id)
+        set_session_id(session_id)
         
         event_id = self._get_event_id(data)
         if not event_id:
@@ -116,10 +111,6 @@ class FeishuBotService:
         if self._check_and_mark(event_id):
             logger.debug(f"Duplicate event {event_id}, skipping")
             return
-        
-        open_id = ""
-        if data.event.sender and data.event.sender.sender_id:
-            open_id = data.event.sender.sender_id.open_id or ""
         
         chat_type = message.chat_type
         text = self._extract_message_text(message)
@@ -131,8 +122,6 @@ class FeishuBotService:
         logger.info(f"Received message from {open_id} in {chat_type}: {text[:100]}")
         
         reply_msg_id = self._reply_message(message_id, "正在思考中，请稍候...")
-        
-        session_id = self._get_session_id(open_id)
         
         request = QueryRequest(
             query=text,
@@ -153,19 +142,29 @@ class FeishuBotService:
             self._reply_message(message_id, reply_text)
 
     def _reply_message(self, message_id: str, text: str) -> str | None:
+        card_content = self._md_converter.convert_to_interactive(text)
+        
         request = ReplyMessageRequest.builder() \
             .message_id(message_id) \
             .request_body(ReplyMessageRequestBody.builder()
-                          .msg_type("text")
-                          .content(f'{{"text":"{self._escape_json(text)}"}}')
+                          .msg_type("interactive")
+                          .content(json.dumps(card_content))
                           .build()) \
             .build()
         
         try:
             response = self.client.im.v1.message.reply(request)
             if response.success() and response.data:
-                logger.info(f"Reply sent successfully to message {message_id}")
-                return response.data.message_id
+                returned_msg_id = response.data.message_id
+                parent_id = getattr(response.data, 'parent_id', None)
+                root_id = getattr(response.data, 'root_id', None)
+                create_time = getattr(response.data, 'create_time', None)
+                logger.info(f"Reply API response: new_msg_id={returned_msg_id}, parent_id={parent_id}, root_id={root_id}, create_time={create_time}, input_msg_id={message_id}")
+                if response.raw and response.raw.content:
+                    logger.debug(f"Reply API raw response: {response.raw.content[:500]}")
+                if returned_msg_id == message_id:
+                    logger.warning("Reply API returned same message_id as input - unexpected behavior")
+                return returned_msg_id
             else:
                 logger.error(f"Reply failed: {response.code} - {response.msg}")
                 return None
@@ -174,16 +173,17 @@ class FeishuBotService:
             return None
 
     def _update_message(self, message_id: str, text: str) -> bool:
-        request = UpdateMessageRequest.builder() \
+        card_content = self._md_converter.convert_to_interactive(text)
+        
+        request = PatchMessageRequest.builder() \
             .message_id(message_id) \
-            .request_body(UpdateMessageRequestBody.builder()
-                          .msg_type("text")
-                          .content(f'{{"text":"{self._escape_json(text)}"}}')
+            .request_body(PatchMessageRequestBody.builder()
+                          .content(json.dumps(card_content))
                           .build()) \
             .build()
         
         try:
-            response = self.client.im.v1.message.update(request)
+            response = self.client.im.v1.message.patch(request)
             if response.success():
                 logger.info(f"Message {message_id} updated successfully")
                 return True

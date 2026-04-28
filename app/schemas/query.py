@@ -76,3 +76,5 @@ class TraceResponse(BaseModel):
     success: bool = True
     error_type: str | None = None
     error_message: str | None = None
+    retrieved_doc_texts: list[str] = Field(default_factory=list)
+    answer_text: str | None = None

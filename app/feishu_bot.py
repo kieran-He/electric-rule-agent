@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import lark_oapi as lark
 
 from app.config import settings
+from app.core.logger import configure_logging
 from app.db.session import SessionLocal, init_db
 from app.services.feishu_bot_service import FeishuBotService
 
@@ -46,6 +47,22 @@ class FeishuBot:
             client=self.client,
         )
         logger.info("Feishu client initialized")
+    
+    def _preload_models(self) -> None:
+        from app.core.embedding_cache import embedding_cache
+        from app.langchain.reranker_cache import reranker_cache
+        from app.services.orchestrator_singleton import orchestrator_singleton
+        
+        logger.info("Preloading embedding model...")
+        embedding_cache.preload(settings.embedding_model)
+        
+        logger.info("Preloading reranker model...")
+        reranker_cache.preload(settings.reranker_model, settings.reranker_max_length)
+        
+        logger.info("Preloading HybridQAOrchestrator...")
+        orchestrator_singleton.preload(settings)
+        
+        logger.info("All models preloaded successfully")
 
     def _handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if self.service:
@@ -62,6 +79,7 @@ class FeishuBot:
         
         self._init_db()
         self._init_client()
+        self._preload_models()
         
         event_handler = self._create_event_handler()
         
@@ -89,10 +107,7 @@ class FeishuBot:
 
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+    configure_logging()
     
     bot = FeishuBot()
     

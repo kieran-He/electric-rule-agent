@@ -14,7 +14,7 @@ from app.core.repository import PolicyChunk, ChromaPolicyRepository
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander
-from app.langchain.query_rewriter import QueryRewriter
+from app.langchain.query_rewriter import QueryRewriter, RewriteResult
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +130,7 @@ class HybridRetriever:
         reranker: Optional[BGEReranker] = None,
         query_expander: Optional[QueryExpander] = None,
         query_rewriter: Optional[QueryRewriter] = None,
+        llm_wrapper: Optional["MiniMaxLLMWrapper"] = None,
         vector_top_k: int = 8,
         bm25_top_k: int = 8,
         final_top_k: int = 8,
@@ -140,11 +141,13 @@ class HybridRetriever:
         query_rewrite_keep_original: bool = True,
         rejection_threshold: Optional[float] = None,
     ):
+        from app.langchain.llm import MiniMaxLLMWrapper
         self.vector_repo = vector_repo
         self.bm25_indexer = bm25_indexer
         self.reranker = reranker or BGEReranker()
         self.query_expander = query_expander
         self.query_rewriter = query_rewriter
+        self.llm_wrapper = llm_wrapper
         self.vector_top_k = vector_top_k
         self.bm25_top_k = bm25_top_k
         self.final_top_k = final_top_k
@@ -155,9 +158,13 @@ class HybridRetriever:
         self.query_rewrite_keep_original = query_rewrite_keep_original
         self.rejection_threshold = rejection_threshold
         self._supported_provinces: Optional[List[str]] = None
+        self._last_rewrite_result: Optional[RewriteResult] = None
         
         if use_query_expansion and self.query_expander is None:
-            self.query_expander = QueryExpander(max_expansions=query_expansion_max)
+            self.query_expander = QueryExpander(
+                max_expansions=query_expansion_max,
+                llm_wrapper=llm_wrapper,
+            )
     
     def _get_supported_provinces(self) -> List[str]:
         """
@@ -204,8 +211,10 @@ class HybridRetriever:
                 logger.info(f"Province {province_code} not supported (supported: {supported})")
                 return []
         
-        queries = self._rewrite_query(query)
-        queries = self._expand_queries(queries)
+        rewritten_queries = self._rewrite_query(query)
+        rerank_query = rewritten_queries[-1] if len(rewritten_queries) > 1 else query
+        
+        queries = self._expand_queries(rewritten_queries)
         
         all_candidates: List[PolicyChunk] = []
         
@@ -226,15 +235,12 @@ class HybridRetriever:
             candidates = self._merge_and_deduplicate(vector_chunks, bm25_chunks)
             all_candidates = self._merge_and_deduplicate(all_candidates, candidates)
         
-        # Use rewritten query for rerank if available (more precise)
-        rerank_query = queries[-1] if queries else query
-        
         if self.reranker.is_available() and len(all_candidates) > self.final_top_k:
             final_chunks = self.reranker.rerank(rerank_query, all_candidates, top_k=self.final_top_k)
         else:
             final_chunks = all_candidates[:self.final_top_k]
         
-        logger.debug(f"Rerank using query: '{rerank_query}' (queries: {queries})")
+        logger.debug(f"Rerank using query: '{rerank_query}' (all queries: {queries})")
         
         if self.rejection_threshold is not None and final_chunks:
             if final_chunks[0].score < self.rejection_threshold:
@@ -253,11 +259,14 @@ class HybridRetriever:
         Returns:
             List of queries (original + rewritten if triggered)
         """
+        self._last_rewrite_result = None
+        
         if not self.use_query_rewrite or self.query_rewriter is None:
             return [query]
         
         try:
             result = self.query_rewriter.rewrite(query)
+            self._last_rewrite_result = result
             if result.triggered:
                 if self.query_rewrite_keep_original:
                     logger.debug(f"Query rewrite: keeping original + rewritten")
@@ -357,6 +366,7 @@ class HybridRetriever:
             "query_rewrite": self.use_query_rewrite,
             "query_rewrite_keep_original": self.query_rewrite_keep_original,
             "rejection_threshold": self.rejection_threshold,
+            "llm_available": self.llm_wrapper is not None,
         }
         
         if self.query_expander:
@@ -366,3 +376,7 @@ class HybridRetriever:
             stats["query_rewriter_stats"] = self.query_rewriter.get_stats()
         
         return stats
+    
+    def get_last_rewrite_result(self) -> Optional[RewriteResult]:
+        """Get the last rewrite result from the most recent retrieve call."""
+        return self._last_rewrite_result

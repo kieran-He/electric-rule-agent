@@ -41,6 +41,8 @@ class TraceService:
                 success=row.success,
                 error_type=row.error_type,
                 error_message=row.error_message,
+                retrieved_doc_texts=json.loads(row.retrieved_doc_texts or "[]"),
+                answer_text=row.answer_text,
             )
 
     def save_trace(
@@ -63,6 +65,8 @@ class TraceService:
         error_type: str | None = None,
         error_message: str | None = None,
         success: bool = True,
+        retrieved_doc_texts: list[str] = None,
+        answer_text: str | None = None,
     ) -> TraceRecord:
         with self.session_factory() as db:
             trace = TraceRecord(
@@ -85,6 +89,8 @@ class TraceService:
                 error_type=error_type,
                 error_message=error_message,
                 success=success,
+                retrieved_doc_texts=json.dumps(retrieved_doc_texts or []),
+                answer_text=answer_text,
             )
             db.add(trace)
             db.flush()

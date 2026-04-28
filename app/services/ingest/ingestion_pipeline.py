@@ -130,28 +130,28 @@ class IngestionPipeline:
         return {"imported_documents": 1, "imported_clauses": len(clauses), "skipped_documents": 0}
 
     def _ingest_directory(self, dir_path: Path, province_code: str, rebuild_index: bool) -> dict[str, int]:
-        json_files = [f for f in dir_path.glob("*.json") if not f.name.startswith("_")]
+        json_files = [
+            f for f in dir_path.glob("*.json")
+            if not f.name.startswith("_") and f.name != "app_structured.json"
+        ]
         total_docs = 0
         total_clauses = 0
         total_skipped = 0
 
-        all_texts: list[str] = []
-        all_metadatas: list[dict[str, str]] = []
+        if rebuild_index and json_files:
+            import chromadb
+            client = chromadb.PersistentClient(path=self.settings.chroma_path)
+            collection_name = f"kb_{province_code.lower()}"
+            try:
+                client.delete_collection(collection_name)
+            except Exception:
+                pass
 
-        for json_file in json_files:
-            result = self._ingest_processed_json(json_file, province_code, rebuild_index)
+        for i, json_file in enumerate(json_files):
+            result = self._ingest_processed_json(json_file, province_code, rebuild_index=False)
             total_docs += result["imported_documents"]
             total_clauses += result["imported_clauses"]
             total_skipped += result["skipped_documents"]
-
-        if all_texts:
-            self.repo.ingest_chunks(
-                texts=all_texts,
-                metadatas=all_metadatas,
-                kb_scope="province",
-                province_code=province_code,
-                rebuild=rebuild_index,
-            )
 
         return {
             "imported_documents": total_docs,
@@ -163,6 +163,7 @@ class IngestionPipeline:
         return {
             "province_code": doc.province_code,
             "doc_id": str(doc.id),
+            "doc_name": doc.doc_name[:200] if doc.doc_name else "",
             "source_name": doc.doc_name[:200] if doc.doc_name else "",
             "source_path": doc.source_file,
             "file_hash": doc.file_hash,
@@ -170,8 +171,10 @@ class IngestionPipeline:
             "effective_date": str(doc.effective_date or ""),
             "policy_level": doc.status,
             "doc_type": doc.doc_type,
-            "article_no": clause_data.get("article_no", ""),
-            "title_path": clause_data.get("title_path", "")[:500] if clause_data.get("title_path") else "",
+            "article_no": clause_data.get("article_no") or "",
+            "title_path": (clause_data.get("title_path") or "")[:500],
+            "page_start": str(clause_data.get("page_start") or ""),
+            "page_end": str(clause_data.get("page_end") or ""),
         }
 
     def rebuild_vector_index(self) -> int:
@@ -199,6 +202,7 @@ class IngestionPipeline:
         return {
             "province_code": doc.province_code,
             "doc_id": str(doc.id),
+            "doc_name": doc.doc_name[:200] if doc.doc_name else "",
             "source_name": doc.doc_name[:200] if doc.doc_name else "",
             "source_path": doc.source_file,
             "file_hash": doc.file_hash,
@@ -208,4 +212,6 @@ class IngestionPipeline:
             "doc_type": doc.doc_type,
             "article_no": clause.article_no or "",
             "title_path": clause.title_path[:500] if clause.title_path else "",
+            "page_start": str(clause.page_start or ""),
+            "page_end": str(clause.page_end or ""),
         }

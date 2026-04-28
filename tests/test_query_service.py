@@ -36,7 +36,7 @@ class FakeOrchestrator:
         self.db = db
         self.settings = settings
     
-    def run(self, req, history=None, trace_service=None):
+    def run(self, req, history=None, trace_service=None, db=None):
         return QueryAnswer(
             answer="测试结论",
             citations=[],
@@ -77,7 +77,9 @@ def build_service():
 def test_query_service_returns_answer():
     service = build_service()
     
-    with patch('app.services.query_service.HybridQAOrchestrator', FakeOrchestrator):
+    fake_orchestrator = FakeOrchestrator(db=None, settings=service.settings)
+    
+    with patch('app.services.query_service.orchestrator_singleton.get_orchestrator', return_value=fake_orchestrator):
         with patch.object(service.conversation_service, 'get_history', return_value=[]):
             with patch.object(service.conversation_service, 'append_turn'):
                 req = QueryRequest(

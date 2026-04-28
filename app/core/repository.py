@@ -72,8 +72,11 @@ class ChromaPolicyRepository:
 
         try:
             from sentence_transformers import SentenceTransformer
+            from app.core.embedding_cache import embedding_cache
 
-            self._embedder = SentenceTransformer(self._embedding_model_name)
+            self._embedder = embedding_cache.preload(self._embedding_model_name)
+            if self._embedder is None:
+                self._embedder = SentenceTransformer(self._embedding_model_name)
         except Exception:
             self._embedder = DeterministicEmbedder()
             self._embedder_name = "deterministic-fallback"

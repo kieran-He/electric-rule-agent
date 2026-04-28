@@ -50,7 +50,7 @@ class HybridQAOrchestrator:
     
     def __init__(
         self,
-        db: Session,
+        db: Session = None,
         settings: Any = None,
         use_hybrid: bool = True,
         vector_top_k: int = None,
@@ -109,6 +109,7 @@ class HybridQAOrchestrator:
                 if self.settings.query_expansion:
                     query_expander = QueryExpander(
                         max_expansions=self.settings.query_expansion_max,
+                        llm_wrapper=self.llm_wrapper,
                     )
                 
                 query_rewriter = None
@@ -117,7 +118,7 @@ class HybridQAOrchestrator:
                         query_rewriter = QueryRewriter(
                             llm_wrapper=self.llm_wrapper,
                             enabled=True,
-                            min_length=self.settings.query_rewrite_min_length,
+                            always_rewrite=self.settings.query_rewrite_always,
                         )
                     except Exception as e:
                         logger.warning(f"Failed to init QueryRewriter: {e}")
@@ -128,6 +129,7 @@ class HybridQAOrchestrator:
                     reranker=reranker,
                     query_expander=query_expander,
                     query_rewriter=query_rewriter,
+                    llm_wrapper=self.llm_wrapper,
                     vector_top_k=self.vector_top_k,
                     bm25_top_k=self.bm25_top_k,
                     final_top_k=self.final_top_k,
@@ -240,13 +242,11 @@ class HybridQAOrchestrator:
         system_prompt = """你是电力政策问答助手。只能根据提供的证据回答，禁止编造。如果证据不足，明确说明"未检索到充分依据"。
 
 回答格式要求：
-1. 直接回答用户问题，正文不要标注来源编号（如"证据来源: 证据1"）
+1. 直接回答用户问题，不要标注来源编号或引用出处
 2. 结构清晰，使用标题和列表组织内容
 3. 如需引用原文，使用引用格式（> 引用内容）
 4. 证据不足时，明确告知用户并建议补充检索
-5. 涉及多省份时，分别说明各省份政策
-
-注意：引用来源会在回答末尾自动展示，无需在正文标注。"""
+5. 涉及多省份时，分别说明各省份政策"""
         
         try:
             answer, input_tokens, output_tokens = self.llm_wrapper.invoke(user_content, system=system_prompt)
@@ -293,7 +293,7 @@ class HybridQAOrchestrator:
             citations.append(citation)
         return citations
     
-    def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None) -> QueryAnswer:
+    def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None, db: Session = None) -> QueryAnswer:
         """
         Execute QA flow with hybrid retrieval.
         
@@ -308,14 +308,14 @@ class HybridQAOrchestrator:
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
         start_time = time.time()
         
-        rewrite_result = None
-        if self.hybrid_retriever and self.hybrid_retriever.query_rewriter:
-            rewrite_result = self.hybrid_retriever.query_rewriter.rewrite(req.query)
-        
         retrieval_start = time.time()
         chunks = self._retrieve(req.query, req.province_codes, req.top_k)
         retrieval_latency = int((time.time() - retrieval_start) * 1000)
         metrics_store.record_latency(retrieval_latency, "retrieval")
+        
+        rewrite_result = None
+        if self.hybrid_retriever:
+            rewrite_result = self.hybrid_retriever.get_last_rewrite_result()
         
         province_code = req.province_codes[0] if req.province_codes else "SN"
         
@@ -334,9 +334,10 @@ class HybridQAOrchestrator:
         metrics_store.record_latency(total_latency, "total")
         metrics_store.record_query(province_code)
         
+        db_session = db or self.db
         try:
             metrics_store.save_to_db(
-                db=self.db,
+                db=db_session,
                 trace_id=trace_id,
                 session_id=req.session_id,
                 request_id=getattr(req, 'request_id', None),
@@ -366,6 +367,8 @@ class HybridQAOrchestrator:
                 output_tokens=output_tokens,
                 retrieval_latency_ms=retrieval_latency,
                 llm_latency_ms=llm_latency,
+                retrieved_doc_texts=[c.text[:500] for c in chunks],
+                answer_text=answer,
             )
         
         return QueryAnswer(

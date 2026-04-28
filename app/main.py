@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes_admin import router as admin_router
+from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_metrics import router as metrics_router
 from app.api.routes_query import router as query_router
@@ -32,6 +33,7 @@ app.include_router(query_router)
 app.include_router(ingest_router)
 app.include_router(admin_router)
 app.include_router(metrics_router)
+app.include_router(evaluation_router)
 
 
 @app.exception_handler(AppError)

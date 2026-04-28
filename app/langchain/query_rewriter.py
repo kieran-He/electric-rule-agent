@@ -43,54 +43,28 @@ class QueryRewriter:
         "有没有", "能不能", "可以吗", "为什么", "怎样"
     ]
     
-    SYSTEM_PROMPT = """你是电力政策领域专家，擅长将用户口语化查询转换为精确的检索查询。
+    SYSTEM_PROMPT = """你是电力政策检索专家。将用户查询改写为更精确的检索形式。
 
-请将用户查询改写为更适合检索的形式，遵循以下规则：
-1. 补充领域关键词（如"交易规则" -> "电力市场交易实施细则"）
-2. 去除口语化表达（如"怎么" -> 具体操作流程）
-3. 添加必要限定词（如省份、政策类型）
-4. 保持查询简洁，不要过度扩展
+规则：
+1. 补充领域关键词（如"交易规则" → "交易实施细则"）
+2. 去除口语化表达
+3. 添加必要限定词
 
-输出JSON格式：
-{"rewritten": "改写后的查询", "keywords_added": ["补充的关键词"]}"""
+输出JSON：{"rewritten": "改写后的查询"}"""
 
     def __init__(
         self,
         llm_wrapper: Optional[MiniMaxLLMWrapper] = None,
         enabled: bool = True,
-        min_length: int = 10,
+        always_rewrite: bool = True,
     ):
         self.llm = llm_wrapper
         self.enabled = enabled
-        self.min_length = min_length
-    
-    def should_rewrite(self, query: str) -> Tuple[bool, str]:
-        """
-        Determine if query should be rewritten.
-        
-        Args:
-            query: User query
-            
-        Returns:
-            Tuple of (should_rewrite, reason)
-        """
-        if not self.enabled:
-            return False, "disabled"
-        
-        if len(query) < self.min_length:
-            return True, "too_short"
-        
-        if not any(kw in query for kw in self.DOMAIN_KEYWORDS):
-            return True, "missing_domain_keyword"
-        
-        if any(p in query for p in self.COLLOQUIAL_PATTERNS):
-            return True, "colloquial_expression"
-        
-        return False, ""
+        self.always_rewrite = always_rewrite
     
     def rewrite(self, query: str) -> RewriteResult:
         """
-        Execute query rewrite.
+        Execute query rewrite (triggers LLM call when always_rewrite=True).
         
         Args:
             query: Original query
@@ -98,10 +72,11 @@ class QueryRewriter:
         Returns:
             RewriteResult with rewritten query and metadata
         """
-        should, reason = self.should_rewrite(query)
+        if not self.enabled:
+            return RewriteResult(query, 1.0, False, "disabled")
         
-        if not should:
-            return RewriteResult(query, 1.0, False, reason)
+        if not self.always_rewrite:
+            return RewriteResult(query, 1.0, False, "skip_rewrite")
         
         if not self.llm:
             logger.warning("LLM wrapper not available, returning original query")
@@ -113,8 +88,8 @@ class QueryRewriter:
             
             rewritten = self._parse_result(result, query)
             
-            logger.info(f"Query rewritten: '{query}' -> '{rewritten}' (reason: {reason})")
-            return RewriteResult(rewritten, 0.8, True, reason)
+            logger.info(f"Query rewritten: '{query}' -> '{rewritten}'")
+            return RewriteResult(rewritten, 0.8, True, "llm_rewrite")
             
         except Exception as e:
             logger.warning(f"Query rewrite failed: {e}, returning original")
@@ -141,10 +116,19 @@ class QueryRewriter:
         """Check if rewriter is available."""
         return self.enabled and self.llm is not None
     
+    def should_rewrite(self, query: str) -> Tuple[bool, str]:
+        """
+        Legacy method - always returns True when enabled.
+        Kept for backward compatibility.
+        """
+        if not self.enabled:
+            return False, "disabled"
+        return True, "always_rewrite"
+    
     def get_stats(self) -> dict:
         """Get rewriter statistics."""
         return {
             "enabled": self.enabled,
-            "min_length": self.min_length,
+            "always_rewrite": self.always_rewrite,
             "llm_available": self.llm is not None,
         }

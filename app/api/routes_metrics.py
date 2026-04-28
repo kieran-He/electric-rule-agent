@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.metrics import metrics_store
 from app.db.repositories.metrics_repo import MetricsRepository
 from app.db.session import SessionLocal
+from app.services.evaluation_service import EvaluationService
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
@@ -85,3 +86,22 @@ def get_recent_metrics(
         }
         for r in records
     ]
+
+
+@router.get("/ragas")
+def get_ragas_metrics(
+    hours: int = 24,
+) -> dict:
+    service = EvaluationService(session_factory=SessionLocal)
+    hourly = service.get_hourly_metrics(hours=hours)
+    summary = service.get_evaluation_summary(hours=hours)
+    
+    return {
+        "hourly": hourly,
+        "daily_avg": {
+            "faithfulness": summary.get("avg_faithfulness", 0),
+            "answer_relevancy": summary.get("avg_answer_relevancy", 0),
+            "context_precision": summary.get("avg_context_precision", 0),
+        },
+        "total_records": summary.get("total_records", 0),
+    }

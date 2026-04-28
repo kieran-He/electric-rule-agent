@@ -16,7 +16,7 @@ def create_minimax_llm(
     model: Optional[str] = None,
     max_tokens: int = 2048,
     temperature: float = 0.1,
-    timeout_seconds: int = 30,
+    timeout_seconds: int = 120,
 ) -> ChatAnthropic:
     """
     Create ChatAnthropic instance for MiniMax API.
@@ -65,12 +65,14 @@ class MiniMaxLLMWrapper:
         model: Optional[str] = None,
         max_tokens: int = 2048,
         disable_thinking: bool = True,
+        timeout_seconds: int = 120,
     ):
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
         self.endpoint = endpoint or os.getenv("LLM_ENDPOINT", "")
         self.model = model or os.getenv("LLM_MODEL", "MiniMax-M2.7")
         self.max_tokens = max_tokens
         self.disable_thinking = disable_thinking
+        self.timeout_seconds = timeout_seconds
         self._client = None
         self._lock = threading.Lock()
 
@@ -83,6 +85,7 @@ class MiniMaxLLMWrapper:
                         endpoint=self.endpoint,
                         model=self.model,
                         max_tokens=self.max_tokens,
+                        timeout_seconds=self.timeout_seconds,
                     )
         return self._client
 
