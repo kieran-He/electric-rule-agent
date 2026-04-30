@@ -1,271 +1,473 @@
-# 电力政策知识问答 Agent / Power Policy Knowledge QA Agent
+# 电力政策知识问答系统
 
-## 项目简介 / Overview
+基于 RAG 技术的电力政策知识问答系统，支持飞书机器人集成，提供多省份政策文档检索和智能问答服务。
 
-**中文**: 本项目是一个基于 RAG 技术的电力政策知识问答系统，支持接入飞书机器人，提供多省份政策文档检索和智能问答服务。系统采用混合检索架构（Vector + BM25 + Reranker），支持 LLM 查询重写和语义扩展，并通过 RAGAS 框架进行效果评估。
+## 项目简介
 
-**English**: This project is a RAG-based power policy knowledge QA system with Feishu bot integration, supporting multi-province policy document retrieval and intelligent Q&A services. The system uses a hybrid retrieval architecture (Vector + BM25 + Reranker), supports LLM-powered query rewrite and semantic expansion, and evaluates performance through the RAGAS framework.
+本项目采用混合检索架构（Vector + BM25 + BGE Reranker），支持 LLM 查询重写和语义扩展，并通过 RAGAS 框架进行效果评估。
 
-## 核心特性 / Core Features
+**主要应用场景**：
+- 电力市场交易政策咨询
+- 多省份政策对比查询
+- 企业合规政策解读
+- 飞书机器人智能客服
 
-### 1. 智能检索 / Intelligent Retrieval
+**技术栈**：FastAPI + LangChain + ChromaDB + GLM-4 / BGE Embedding
 
-- **Query Rewrite (查询重写)**: LLM 驱动的查询优化，提升检索相关性 / LLM-powered query optimization for improved relevance
-- **Query Expansion (查询扩展)**: 语义/同义词扩展，增强召回率 / Semantic/synonym expansion for enhanced recall
-- **Hybrid Retrieval (混合检索)**: 向量检索 + BM25 + BGE Reranker 三阶段检索 / Three-stage retrieval: Vector + BM25 + BGE Reranker
+## 系统架构
 
-### 2. 多省份支持 / Multi-Province Support
+### 整体架构图
 
-- 省份隔离的知识库（每省独立 Chroma collection）/ Province-isolated knowledge bases (separate Chroma collections)
-- 省份+全局混合检索 / Province + global hybrid retrieval
-- 多省份对比查询 / Multi-province comparison queries
-- 自动省份检测（低置信度确认流程）/ Automatic province detection with low-confidence confirmation
-
-### 3. 飞书集成 / Feishu Integration
-
-- 实时消息处理 / Real-time message handling
-- Webhook 验证（Token + Signature）/ Webhook verification
-- 事件去重 / Event deduplication
-- 错误告警推送 / Error alert notifications
-
-### 4. 效果评估 / Evaluation System
-
-- RAGAS 指标（faithfulness, answer_relevancy, context_precision）/ RAGAS metrics
-- 批量评估 API / Batch evaluation API
-- A/B 对比工作流 / A/B comparison workflow
-- 17 项核心指标追踪 / 17 core metrics tracking
-
-## 架构示意 / Architecture
-
+```mermaid
+graph TB
+    subgraph "用户接入层"
+        A1[飞书 Webhook]
+        A2[HTTP API]
+        A3[内部查询接口]
+    end
+    
+    subgraph "查询处理层"
+        B1[Query Rewrite<br/>LLM查询优化]
+        B2[Query Expansion<br/>语义/同义词扩展]
+        B3[省份检测<br/>自动]
+    end
+    
+    subgraph "混合检索层"
+        C1[Vector检索<br/>ChromaDB]
+        C2[BM25检索<br/>关键词匹配]
+        C3[Reranker<br/>BGE重排序]
+    end
+    
+    subgraph "生成层"
+        D1[LLM Generation<br/>MINIMAX-M2.7]
+        D2[答案生成]
+    end
+    
+    subgraph "数据层"
+        E1[data/docs/<br/>原始文档]
+        E2[data/chroma/<br/>向量数据库]
+        E3[data/cache/<br/>BM25索引]
+        E4[data/dict/<br/>字典数据]
+    end
+    
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    B1 --> B2
+    B2 --> B3
+    B3 --> C1
+    B3 --> C2
+    C1 --> C3
+    C2 --> C3
+    C3 --> D1
+    D1 --> D2
+    
+    E1 --> C1
+    E2 --> C1
+    E3 --> C2
+    E4 --> B2
 ```
 
-用户查询 → Query Rewrite → Query Expansion → Hybrid Retrieval → Reranker → LLM Generation → 答案
-    ↓                                                              ↓
-飞书 Webhook                                                向量数据库 (Chroma)
-                                                                +
-                                                            BM25 索引
+### 处理流程图
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant Q as Query处理
+    participant R as 检索层
+    participant G as LLM生成
+    
+    U->>Q: 发送查询
+    Q->>Q: Query Rewrite (LLM优化)
+    Q->>Q: Query Expansion (语义扩展)
+    Q->>Q: 省份检测
+    
+    Q->>R: 执行检索
+    R->>R: Vector检索 (Top-K1)
+    R->>R: BM25检索 (Top-K2)
+    R->>R: 合并候选集
+    R->>R: Reranker重排序
+    R->>G: 返回 Top-K 文档
+    
+    G->>G: 生成答案
+    G->>U: 返回结果
 ```
 
-## 快速开始 / Quick Start
+### 核心组件说明
 
-### 安装依赖 / Install Dependencies
+| 组件 | 功能 | 模型/技术 |
+|------|------|-----------|
+| Query Rewrite | LLM驱动查询优化，提升检索相关性 | MINIMAX-M2.7 |
+| Query Expansion | 语义/同义词扩展，增强召回率 | synonyms.json + semantic |
+| Hybrid Retrieval | Vector + BM25 双路召回 | ChromaDB + BM25 |
+| Reranker | 精排序，筛选最相关文档 | BAAI/bge-reranker-large |
+| LLM Generation | 答案生成 | MINIMAX-M2.7 |
+
+## 快速开始
+
+### 环境准备
 
 ```bash
+# 克隆项目
+git clone <repo_url>
+cd firstmodel
+
+# 创建虚拟环境（可选）
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 配置环境 / Configure Environment
+### 配置说明
 
 ```bash
+# 复制环境配置模板
 cp .env.example .env
-# 编辑 .env 文件配置必要参数 / Edit .env to configure required parameters
+
+# 编辑 .env 配置必要参数
+# 主要配置项：
+# - GLM_API_KEY: 智谱AI API密钥（必需）
+# - EMBEDDING_MODEL: 向量嵌入模型路径
+# - CHROMA_PATH: 向量数据库路径
 ```
 
-### 离线导入文档 / Offline Document Ingestion
+### 启动服务
 
 ```bash
-# 省份知识库 / Province KB
-python tools/offline_ingest.py --kb-scope province --province-code SN --dedupe true --rebuild false
-
-# 全局知识库 / Global KB
-python tools/offline_ingest.py --kb-scope global --dedupe true --rebuild true
-```
-
-### 启动服务 / Start Service
-
-```bash
+# 开发模式（带热重载）
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 生产模式
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
 ```
 
-## 配置说明 / Configuration
+## 核心功能
 
-### 核心配置 / Core Configuration
+### 智能检索
 
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `EMBEDDING_MODEL` | 向量嵌入模型 / Embedding model | `BAAI/bge-small-zh-v1.5` |
-| `TOP_K` | 检索文档数量 / Retrieval document count | `8` |
-| `CHROMA_PATH` | 向量数据库路径 / Vector DB path | `./data/chroma` |
-| `DATABASE_URL` | 数据库连接 / Database connection | `sqlite:///./data/processed/app.db` |
+- **Query Rewrite**: LLM驱动的查询优化，支持保留原始查询、最小长度阈值控制
+- **Query Expansion**: 语义扩展、同义词扩展，最大扩展数量可配置
+- **Hybrid Retrieval**: 向量检索 + BM25 + BGE Reranker 三阶段检索，可配置各阶段 Top-K
 
-### Query Rewrite 配置 / Query Rewrite Configuration
+### 多省份支持
 
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `QUERY_REWRITE_ENABLED` | 启用 LLM 查询重写 / Enable LLM query rewrite | `true` |
-| `QUERY_REWRITE_ALWAYS` | 强制重写所有查询 / Always rewrite all queries | `true` |
-| `QUERY_REWRITE_MIN_LENGTH` | 最小重写长度阈值 / Minimum length for rewrite | `10` |
-| `QUERY_REWRITE_KEEP_ORIGINAL` | 保留原始查询 / Keep original query | `true` |
+- 省份隔离的知识库（每省独立 Chroma collection）
+- 省份+全局混合检索模式
+- 自动省份检测（置信度阈值可配置）
+- 低置信度时触发确认流程
 
-### Query Expansion 配置 / Query Expansion Configuration
+### 飞书集成
 
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `QUERY_EXPANSION` | 启用查询扩展 / Enable query expansion | `true` |
-| `QUERY_EXPANSION_METHOD` | 扩展方法 (semantic/synonyms) / Expansion method | `semantic` |
-| `QUERY_EXPANSION_MAX` | 最大扩展数量 / Maximum expansions | `3` |
+- 实时消息处理
+- Webhook 验证（Token + Signature）
+- 事件去重
+- 错误告警推送
 
-### Hybrid Retrieval 配置 / Hybrid Retrieval Configuration
+### 效果评估
 
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `HYBRID_VECTOR_TOP_K` | 向量检索 Top-K / Vector retrieval Top-K | `15` |
-| `HYBRID_BM25_TOP_K` | BM25 检索 Top-K / BM25 retrieval Top-K | `15` |
-| `HYBRID_FINAL_TOP_K` | 最终返回文档数 / Final document count | `12` |
+- RAGAS 指标（faithfulness, answer_relevancy, context_precision）
+- 批量评估 API
+- A/B 对比工作流
+- 17项核心指标追踪
 
-### BM25 参数 / BM25 Parameters
-
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `BM25_K1` | BM25 K1 参数（词频饱和度）/ BM25 K1 parameter | `1.5` |
-| `BM25_B` | BM25 B 参数（文档长度归一化）/ BM25 B parameter | `0.6` |
-
-### Reranker 配置 / Reranker Configuration
-
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `RERANKER_MODEL` | 重排序模型 / Reranker model | `BAAI/bge-reranker-large` |
-| `RERANKER_PRELOAD` | 启动时预加载模型 / Preload model at startup | `true` |
-| `RERANKER_MAX_LENGTH` | 最大序列长度 / Maximum sequence length | `512` |
-| `RERANK_TOP_K` | 重排序后返回数量 / Post-rerank document count | `8` |
-
-### 飞书配置 / Feishu Configuration
-
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `FEISHU_APP_ID` | 飞书应用 ID / Feishu app ID | - |
-| `FEISHU_APP_SECRET` | 飞书应用密钥 / Feishu app secret | - |
-| `FEISHU_WEBHOOK_URL` | 告警 Webhook 地址 / Alert webhook URL | - |
-| `FEISHU_ALERT_ENABLED` | 启用飞书告警 / Enable Feishu alerts | `false` |
-| `FEISHU_MAX_WORKERS` | 最大并发工作线程 / Max concurrent workers | `10` |
-
-### 其他配置 / Other Configuration
-
-| 变量 / Variable | 说明 / Description | 默认值 / Default |
-|----------------|-------------------|-----------------|
-| `PROVINCE_DEFAULT` | 默认省份代码 / Default province code | `SN` |
-| `PROVINCE_CONFIDENCE_THRESHOLD` | 省份检测置信度阈值 / Province detection threshold | `0.7` |
-| `CONVERSATION_TTL_MINUTES` | 会话过期时间（分钟）/ Session TTL (minutes) | `120` |
-| `LLM_TIMEOUT_SECONDS` | LLM 超时时间（秒）/ LLM timeout (seconds) | `120` |
-| `OCR_ENABLED` | 启用 OCR / Enable OCR | `false` |
-
-## API 文档 / API Documentation
-
-### 核心 API / Core APIs
-
-| 端点 / Endpoint | 方法 / Method | 说明 / Description |
-|----------------|---------------|-------------------|
-| `/admin/health` | GET | 服务健康状态 + 运行模式 / Service health + runtime mode |
-| `/query` | POST | 内部查询端点 / Internal query endpoint |
-| `/feishu/webhook` | POST | 飞书回调端点 / Feishu callback endpoint |
-
-### 数据导入 API / Ingestion API
-
-| 端点 / Endpoint | 方法 / Method | 说明 / Description |
-|----------------|---------------|-------------------|
-| `/admin/ingest` | POST | 导入文档到知识库（需启用）/ Ingest docs into KB (requires enable) |
-
-> 注意：当 `INGEST_ENABLED=false` 时，`/admin/ingest` 返回 403。生产环境建议使用离线导入。
-
-### 可观测性 API / Observability APIs
-
-| 端点 / Endpoint | 方法 / Method | 说明 / Description |
-|----------------|---------------|-------------------|
-| `/metrics` | GET | 实时性能摘要（延迟、Token、查询数、错误）/ Real-time performance summary |
-| `/metrics/health` | GET | 指标系统健康状态 / Metrics system health |
-| `/metrics/history?hours=24` | GET | 历史性能统计 / Historical performance stats |
-| `/metrics/errors?hours=24` | GET | 错误统计摘要 / Error count summary |
-| `/metrics/province?hours=24` | GET | 按省份分布的查询统计 / Query distribution by province |
-| `/metrics/recent?limit=100` | GET | 最近指标记录 / Recent metrics records |
-| `/query/trace/{trace_id}` | GET | 特定查询的详细追踪 / Detailed trace for specific query |
-
-### 评估 API / Evaluation APIs
-
-| 端点 / Endpoint | 方法 / Method | 说明 / Description |
-|----------------|---------------|-------------------|
-| `/evaluation/recent?limit=50` | GET | 获取最近评估记录（含 RAGAS 分数）/ Get recent evaluations with RAGAS scores |
-| `/evaluation/summary?hours=24` | GET | 评估指标汇总（平均 faithfulness 等）/ Evaluation metrics summary |
-| `/evaluation/run?batch_size=20` | POST | 手动触发批量评估 / Trigger batch evaluation |
-| `/evaluation/pending?limit=50` | GET | 获取待评估的追踪记录 / Get pending traces for evaluation |
-| `/metrics/ragas?hours=24` | GET | RAGAS 指标趋势（按小时统计）/ RAGAS metrics trends (hourly) |
-
-## 查询示例 / Query Example
-
-```json
-{
-  "query": "2026年陕西电力市场中长期交易流程是什么？",
-  "session_id": "chat_123:user_456",
-  "mode": "auto"
-}
-```
-
-## 目录结构 / Project Structure
+## 目录结构
 
 ```text
-.
-├── app/
-│   ├── api/                  # API 路由 / API routes
-│   │   ├── routes_query.py   # 查询接口 / Query endpoints
-│   │   ├── routes_metrics.py # 指标接口 / Metrics endpoints
-│   │   └── routes_evaluation.py # 评估接口 / Evaluation endpoints
-│   ├── core/                 # 核心模块 / Core modules
-│   ├── db/                   # 数据库模型 / Database models
-│   ├── langchain/            # LangChain 组件 / LangChain components
-│   │   ├── hybrid_retriever.py   # 混合检索器 / Hybrid retriever
-│   │   └── orchestrator_hybrid.py # 编排器 / Orchestrator
-│   ├── schemas/              # 数据模型 / Data schemas
-│   └── services/             # 业务服务 / Business services
-├── data/
-│   ├── raw/                  # 原始文档 / Raw documents
-│   │   ├── global/           # 全国政策 / National policies
-│   │   ├── SN/               # 陕西政策 / Shaanxi policies
-│   │   └── GD/               # 广东政策 / Guangdong policies
-│   ├── chroma/               # 向量数据库 / Vector database
-│   └── processed/            # 处理后数据 / Processed data
-├── evaluation/               # 评估系统 / Evaluation system
-│   ├── run_eval.py           # CLI 入口 / CLI entry point
-│   ├── benchmark.json        # 测试问题集 / Test questions
-│   └── reports/               # 评估报告 / Evaluation reports
-└── tools/
-    └── offline_ingest.py     # 离线导入工具 / Offline ingest tool
+firstmodel/
+├── app/                        # 核心应用
+│   ├── api/                    # API路由
+│   │   ├── routes_query.py     # 查询接口
+│   │   ├── routes_metrics.py   # 指标接口
+│   │   └── routes_evaluation.py # 评估接口
+│   ├── core/                   # 核心模块
+│   ├── db/                     # 数据库模型
+│   ├── langchain/              # LangChain组件
+│   │   ├── hybrid_retriever.py # 混合检索器
+│   │   └── orchestrator_hybrid.py # 编排器
+│   ├── schemas/                # 数据模型
+│   ├── services/               # 业务服务
+│   └── utils/                  # 工具函数
+├── dataprocess/                # 数据处理管道
+│   ├── pipeline.py             # 文档处理主流程
+│   ├── parsers/                # PDF/DOCX解析器
+│   └── chunkers/               # LLM智能分块
+├── evaluation/                 # 评估系统
+│   ├── run_eval.py             # CLI评估入口
+│   ├── benchmark.json          # 测试基准问题
+│   ├── experiments/            # 实验数据
+│   └── reports/                # 评估报告
+├── tests/                      # 测试文件
+├── tools/                      # 工具脚本
+│   ├── offline_ingest.py       # 离线导入工具
+│   ├── smoke_rag.py            # 快速测试工具
+│   └── tessdata/               # OCR语言数据
+├── scripts/                    # 辅助脚本
+├── docs/                       # 文档
+├── data/                       # 数据存储
+│   ├── docs/                   # 原始政策文档（按省份）
+│   │   ├── global/             # 全国政策
+│   │   ├── SN/                 # 陕西
+│   │   ├── SX/                 # 山西
+│   │   └── GS/                 # 甘肃
+│   ├── chroma/                 # 向量数据库
+│   ├── cache/                  # BM25索引缓存
+│   ├── dict/                   # 字典数据
+│   │   ├── stopwords.txt       # 停词表
+│   │   ├── synonyms.json       # 同义词
+│   │   └── power_policy.txt    # 领域词典
+│   └── processed/              # 处理后数据
+│       └── SN/_manifest.json   # 处理记录
+├── .env.example                # 环境配置模板
+├── .gitignore                  # Git忽略规则
+├── README.md                   # 项目说明
+└── requirements.txt            # 依赖列表
 ```
 
-## 文档布局建议 / Recommended Docs Layout
+## API接口
 
-```text
-data/docs/
-  global/
-    ... 全国政策文件 (.pdf/.docx/.txt) / National policy files
-  SN/
-    ... 陕西政策文件 / Shaanxi policy files
-  GD/
-    ... 广东政策文件 / Guangdong policy files
-```
+### 查询接口
 
-## 评估系统 / Evaluation System
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/query` | POST | 内部查询端点 |
+| `/feishu/webhook` | POST | 飞书回调端点 |
 
-详细的评估系统文档请参阅 / For detailed evaluation system documentation, see: [evaluation/README.md](evaluation/README.md)
+### 管理接口
 
-### 快速评估命令 / Quick Evaluation Commands
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/admin/health` | GET | 服务健康状态 |
+| `/admin/ingest` | POST | 导入文档（需启用） |
+
+### 指标接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/metrics` | GET | 实时性能摘要 |
+| `/metrics/history` | GET | 历史性能统计 |
+| `/metrics/errors` | GET | 错误统计 |
+| `/metrics/province` | GET | 省份查询分布 |
+| `/query/trace/{trace_id}` | GET | 查询详细追踪 |
+
+### 评估接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/evaluation/recent` | GET | 最近评估记录 |
+| `/evaluation/summary` | GET | 评估指标汇总 |
+| `/evaluation/run` | POST | 手动触发批量评估 |
+| `/metrics/ragas` | GET | RAGAS指标趋势 |
+
+## 开发指南
+
+### 本地开发
 
 ```bash
-# 生成测试问题集 / Generate benchmark questions
+# 启动开发服务
+uvicorn app.main:app --reload
+
+# 查看API文档
+# http://localhost:8000/docs
+# http://localhost:8000/redoc
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试
+pytest tests/test_retriever.py -v
+
+# 运行覆盖率测试
+pytest tests/ --cov=app
+```
+
+### 添加新省份
+
+1. 在 `data/docs/` 下创建省份目录（如 `GD/`）
+2. 放入政策文档（PDF/DOCX）
+3. 运行离线导入：
+   ```bash
+   python tools/offline_ingest.py --kb-scope province --province-code GD --dedupe true
+   ```
+4. 更新 `app/config.py` 中的 `PROVINCE_DEFAULT`
+
+### 调试技巧
+
+```bash
+# 快速验证RAG功能
+python tools/smoke_rag.py --query "陕西电力交易规则"
+
+# 查看向量数据库状态
+python -c "from app.core.vector_store import get_collection_info; print(get_collection_info('SN'))"
+```
+
+## 部署说明
+
+### 生产环境配置
+
+```env
+# 必需配置
+GLM_API_KEY=<your_api_key>
+EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
+CHROMA_PATH=./data/chroma
+
+# 性能配置
+TOP_K=8
+HYBRID_VECTOR_TOP_K=15
+HYBRID_BM25_TOP_K=15
+RERANK_TOP_K=8
+
+# 安全配置
+INGEST_ENABLED=false
+FEISHU_ALERT_ENABLED=true
+```
+
+### 离线数据导入
+
+```bash
+# 导入省份知识库
+python tools/offline_ingest.py --kb-scope province --province-code SN --dedupe true
+
+# 导入全局知识库
+python tools/offline_ingest.py --kb-scope global --dedupe true --rebuild true
+
+# 查看导入状态
+python tools/offline_ingest.py --status
+```
+
+### 服务启动
+
+```bash
+# 生产环境启动
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# Docker启动（可选）
+docker build -t power-policy-qa .
+docker run -p 8000:8000 power-policy-qa
+```
+
+### 性能调优
+
+- 调整 `HYBRID_VECTOR_TOP_K` 和 `HYBRID_BM25_TOP_K` 平衡召回率与延迟
+- 启用 `RERANKER_PRELOAD=true` 减少首次请求延迟
+- 配置 `FEISHU_MAX_WORKERS` 控制飞书并发处理数
+
+## 数据处理流程
+
+### 文档导入流程
+
+```mermaid
+flowchart LR
+    A[原始文档<br/>PDF/DOCX] --> B[解析器<br/>pdfplumber/ocr]
+    B --> C[文本清洗<br/>去噪/格式化]
+    C --> D[LLM分块<br/>智能切分]
+    D --> E[元数据提取<br/>省份/类型/日期]
+    E --> F[向量嵌入<br/>BGE Embedding]
+    F --> G[ChromaDB<br/>向量存储]
+    E --> H[BM25索引<br/>关键词索引]
+```
+
+### 向量索引构建
+
+```bash
+# dataprocess模块处理流程
+python -m dataprocess.pipeline --input data/docs/SN --output data/processed/SN
+
+# 处理步骤：
+# 1. 文档解析 -> 提取文本
+# 2. LLM分块 -> 智能切分
+# 3. 元数据提取 -> 省份/类型/来源
+# 4. 向量嵌入 -> BGE Embedding
+# 5. Chroma存储 -> 向量索引
+```
+
+### BM25索引构建
+
+BM25索引在离线导入时自动构建，存储在 `data/cache/` 目录：
+- `bm25_sn.pkl` - 陕西BM25索引
+- `bm25_global.pkl` - 全局BM25索引
+
+## 评估系统
+
+详细文档请参阅 [evaluation/README.md](evaluation/README.md)
+
+### 快速评估命令
+
+```bash
+# 生成测试问题集
 python evaluation/run_eval.py generate --docs-path data/docs/SN --output evaluation/benchmark.json --count 100
 
-# 运行评估 / Run evaluation
+# 运行评估
 python evaluation/run_eval.py run --benchmark evaluation/benchmark.json --ragas --save-db
 
-# A/B 对比 / A/B comparison
-python evaluation/run_eval.py compare eval_20260421_001 eval_20260421_002
+# A/B对比
+python evaluation/run_eval.py compare eval_001 eval_002
 ```
 
-## 注意事项 / Notes
+### RAGAS指标说明
 
-- `INGEST_ENABLED=false` 表示在线模式仅支持查询，数据刷新使用 `tools/offline_ingest.py`
-- `CHROMA_PATH` 是在线读取路径，离线导入输出需保持同一路径
-- 导入流程使用健壮的清洗和质量检查，OCR 回退可通过 `enable_ocr` 或 `OCR_ENABLED=true` 启用
-- OCR 回退依赖本地 Tesseract 安装和语言包（`chi_sim+eng`）
-- Windows OCR 快速配置：
-  - `TESSERACT_CMD=C:/Program Files/Tesseract-OCR/tesseract.exe`
-  - `TESSDATA_PREFIX=e:/newprojects/firstmodel/tools/tessdata`
-- 如果 `GLM_API_KEY` 为空，服务将使用确定性回退响应模板
+| 指标 | 说明 | 目标值 |
+|------|------|--------|
+| faithfulness | 答案与上下文一致性 | > 0.85 |
+| answer_relevancy | 答案与问题相关性 | > 0.80 |
+| context_precision | 检索上下文精确度 | > 0.75 |
+
+## 配置参数速查
+
+### 核心配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `EMBEDDING_MODEL` | BAAI/bge-small-zh-v1.5 | 向量嵌入模型 |
+| `TOP_K` | 8 | 最终返回文档数 |
+| `CHROMA_PATH` | ./data/chroma | 向量数据库路径 |
+
+### 检索配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `HYBRID_VECTOR_TOP_K` | 15 | 向量检索候选数 |
+| `HYBRID_BM25_TOP_K` | 15 | BM25检索候选数 |
+| `BM25_K1` | 1.5 | BM25词频饱和度 |
+| `BM25_B` | 0.6 | BM25长度归一化 |
+| `RERANK_TOP_K` | 8 | 重排序返回数 |
+
+### Query处理配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `QUERY_REWRITE_ENABLED` | true | 启用查询重写 |
+| `QUERY_EXPANSION` | true | 启用查询扩展 |
+| `QUERY_EXPANSION_METHOD` | semantic | 扩展方法 |
+| `QUERY_EXPANSION_MAX` | 3 | 最大扩展数 |
+
+## 常见问题
+
+**Q: 服务启动后查询返回空结果？**
+A: 检查 `data/chroma/` 目录是否存在向量数据，运行离线导入：
+```bash
+python tools/offline_ingest.py --status
+```
+
+**Q: 如何添加新的政策文档？**
+A: 将文档放入对应省份目录，运行离线导入：
+```bash
+python tools/offline_ingest.py --kb-scope province --province-code SN
+```
+
+**Q: 飞书机器人无法接收消息？**
+A: 检查飞书配置（`FEISHU_APP_ID`, `FEISHU_APP_SECRET`）和Webhook验证。
+
+**Q: OCR功能如何启用？**
+A: 安装Tesseract并配置：
+```env
+OCR_ENABLED=true
+TESSERACT_CMD=C:/Program Files/Tesseract-OCR/tesseract.exe
+TESSDATA_PREFIX=./tools/tessdata
+```

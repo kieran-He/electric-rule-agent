@@ -119,6 +119,11 @@ class IngestionPipeline:
             self.db.add_all(rule_tags)
 
         if texts:
+            self.repo.delete_by_file_hash(
+                kb_scope="province",
+                province_code=province_code,
+                file_hash=file_hash,
+            )
             self.repo.ingest_chunks(
                 texts=texts,
                 metadatas=metadatas,

@@ -194,24 +194,34 @@ class HybridRetriever:
         self,
         query: str,
         province_codes: List[str],
-    ) -> List[PolicyChunk]:
+    ) -> Tuple[List[PolicyChunk], List[str]]:
         """
-        Hybrid retrieval pipeline.
+        Hybrid retrieval pipeline with province detection.
         
         Args:
             query: User query
-            province_codes: List of province codes to search
+            province_codes: Default province codes (used if no provinces detected)
             
         Returns:
-            Re-ranked list of PolicyChunk (empty if rejected)
+            (Re-ranked list of PolicyChunk, detected province codes)
         """
-        supported = self._get_supported_provinces()
-        for province_code in province_codes:
-            if province_code not in supported:
-                logger.info(f"Province {province_code} not supported (supported: {supported})")
-                return []
-        
         rewritten_queries = self._rewrite_query(query)
+        
+        detected_codes = province_codes
+        if self._last_rewrite_result and self._last_rewrite_result.province_codes:
+            detected_codes = self._last_rewrite_result.province_codes
+            logger.info(f"Detected provinces from query: {detected_codes}")
+        
+        if not detected_codes:
+            logger.info(f"No provinces detected, using default: {province_codes}")
+            detected_codes = province_codes
+        
+        supported = self._get_supported_provinces()
+        valid_codes = [c for c in detected_codes if c in supported]
+        if not valid_codes:
+            valid_codes = province_codes
+            logger.warning(f"Detected provinces {detected_codes} not supported, using default: {province_codes}")
+        
         rerank_query = rewritten_queries[-1] if len(rewritten_queries) > 1 else query
         
         queries = self._expand_queries(rewritten_queries)
@@ -220,7 +230,7 @@ class HybridRetriever:
         
         for q in queries:
             vector_chunks: List[PolicyChunk] = []
-            for province_code in province_codes:
+            for province_code in valid_codes:
                 chunks = self.vector_repo.retrieve(
                     query=q,
                     top_k=self.vector_top_k,
@@ -229,8 +239,12 @@ class HybridRetriever:
                 )
                 vector_chunks.extend(chunks)
             
-            bm25_results = self.bm25_indexer.search(q, top_k=self.bm25_top_k)
-            bm25_chunks = [chunk for chunk, score in bm25_results]
+            bm25_results = self.bm25_indexer.search(q, top_k=self.bm25_top_k * 2)
+            bm25_chunks = [
+                chunk for chunk, score in bm25_results
+                if chunk.metadata.get("province_code", "UNKNOWN") in valid_codes or chunk.metadata.get("province_code", "UNKNOWN") == "UNKNOWN"
+            ]
+            bm25_chunks = bm25_chunks[:self.bm25_top_k]
             
             candidates = self._merge_and_deduplicate(vector_chunks, bm25_chunks)
             all_candidates = self._merge_and_deduplicate(all_candidates, candidates)
@@ -245,9 +259,9 @@ class HybridRetriever:
         if self.rejection_threshold is not None and final_chunks:
             if final_chunks[0].score < self.rejection_threshold:
                 logger.info(f"Query rejected: top score {final_chunks[0].score:.3f} < threshold {self.rejection_threshold}")
-                return []
+                return [], valid_codes
         
-        return final_chunks
+        return final_chunks, valid_codes
     
     def _rewrite_query(self, query: str) -> List[str]:
         """

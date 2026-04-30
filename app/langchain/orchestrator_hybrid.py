@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from typing import Any, List, TYPE_CHECKING
+from typing import Any, List, Tuple, TYPE_CHECKING
 import logging
 
 from sqlalchemy.orm import Session
@@ -181,22 +181,32 @@ class HybridQAOrchestrator:
         query: str,
         province_codes: List[str],
         top_k: int,
-    ) -> List[PolicyChunk]:
+    ) -> Tuple[List[PolicyChunk], List[str]]:
         """
-        Hybrid retrieval: Vector + BM25 + BGE Rerank.
+        Hybrid retrieval: Vector + BM25 + BGE Rerank with province detection.
         
         Args:
             query: User query
-            province_codes: Province codes to search
+            province_codes: Province codes to search (default/fallback)
             top_k: Number of results
             
         Returns:
-            List of PolicyChunk
+            Tuple of (List of PolicyChunk, detected province codes)
         """
         if self.hybrid_retriever is not None:
             return self.hybrid_retriever.retrieve(query, province_codes)
         else:
-            return self._retrieve_vector(query, province_codes, top_k)
+            fallback_codes = self._detect_provinces_fallback(query, province_codes)
+            return self._retrieve_vector(query, province_codes, top_k), fallback_codes
+    
+    def _detect_provinces_fallback(self, query: str, default_codes: List[str]) -> List[str]:
+        """Fallback province detection when hybrid retriever not available."""
+        from dataprocess.province_mapping import PROVINCE_ALIASES
+        detected = []
+        for alias, code in PROVINCE_ALIASES.items():
+            if alias in query:
+                detected.append(code)
+        return detected if detected else default_codes
     
     def _generate_answer_with_tokens(
         self,
@@ -303,13 +313,13 @@ class HybridQAOrchestrator:
             trace_service: TraceService for recording
             
         Returns:
-            QueryAnswer
+            QueryAnswer with detected provinces info
         """
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
         start_time = time.time()
         
         retrieval_start = time.time()
-        chunks = self._retrieve(req.query, req.province_codes, req.top_k)
+        chunks, detected_codes = self._retrieve(req.query, req.province_codes, req.top_k)
         retrieval_latency = int((time.time() - retrieval_start) * 1000)
         metrics_store.record_latency(retrieval_latency, "retrieval")
         
@@ -317,7 +327,7 @@ class HybridQAOrchestrator:
         if self.hybrid_retriever:
             rewrite_result = self.hybrid_retriever.get_last_rewrite_result()
         
-        province_code = req.province_codes[0] if req.province_codes else "SN"
+        province_code = detected_codes[0] if detected_codes else "SN"
         
         llm_start = time.time()
         answer, input_tokens, output_tokens = self._generate_answer_with_tokens(
@@ -371,6 +381,8 @@ class HybridQAOrchestrator:
                 answer_text=answer,
             )
         
+        detected_provinces_str = ", ".join(detected_codes) if detected_codes else ""
+        
         return QueryAnswer(
             answer=answer,
             citations=citations,
@@ -380,6 +392,7 @@ class HybridQAOrchestrator:
             trace_id=trace_id,
             flow=None,
             warnings=[] if chunks else ["未检索到相关文档"],
+            detected_provinces=detected_provinces_str,
         )
     
     def get_retrieval_stats(self) -> dict:

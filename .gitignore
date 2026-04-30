@@ -10,9 +10,8 @@ temp/
 logs/
 data/chroma/
 data/cache/
-data/processed/*.log
-data/processed/*.db
-data/processed/*.json
+data/processed/
+data/docs/
 evaluation/.ragas_cache/
 evaluation/reports_*/
 evaluation/archive/

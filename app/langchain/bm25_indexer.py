@@ -200,19 +200,46 @@ class BM25Indexer:
         except Exception as e:
             print(f"Warning: Failed to save cache: {e}")
     
+    def _extract_province_from_path(self, json_file: Path) -> str:
+        """Extract province code from file path."""
+        from dataprocess.province_mapping import PROVINCE_CODE_ALIASES
+        
+        for part in json_file.parts:
+            upper_part = part.upper()
+            if upper_part in PROVINCE_CODE_ALIASES:
+                return upper_part
+        
+        parent_name = json_file.parent.name.upper()
+        if parent_name in PROVINCE_CODE_ALIASES:
+            return parent_name
+        
+        return "UNKNOWN"
+    
     def _build_from_corpus(self) -> int:
         """
-        Build BM25 index from corpus files.
+        Build BM25 index from corpus files (recursive search).
+        
+        Searches both direct JSON files and province subdirectories.
+        Adds province_code to metadata for filtering.
         
         Returns:
             Number of documents indexed
         """
+        from dataprocess.province_mapping import PROVINCE_CODE_ALIASES
+        
         json_files = list(self.corpus_path.glob("*.json"))
         json_files = [f for f in json_files if not f.name.startswith("_")]
         
+        recursive_files = list(self.corpus_path.glob("**/*.json"))
+        recursive_files = [f for f in recursive_files if not f.name.startswith("_")]
+        
+        all_files = list(set(json_files + recursive_files))
+        
         total_docs = 0
         
-        for json_file in json_files:
+        for json_file in all_files:
+            province_code = self._extract_province_from_path(json_file)
+            
             try:
                 with open(json_file, encoding='utf-8') as f:
                     data = json.load(f)
@@ -233,6 +260,7 @@ class BM25Indexer:
                         "file_hash": json_file.stem,
                         "page_start": clause.get("page_start"),
                         "page_end": clause.get("page_end"),
+                        "province_code": province_code,
                     })
                     total_docs += 1
                     

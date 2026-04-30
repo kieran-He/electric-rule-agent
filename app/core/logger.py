@@ -49,8 +49,8 @@ def configure_logging() -> None:
 
     file_handler = RotatingFileHandler(
         settings.log_file,
-        maxBytes=2 * 1024 * 1024,
-        backupCount=3,
+        maxBytes=settings.log_max_bytes,
+        backupCount=settings.log_backup_count,
         encoding="utf-8",
     )
     file_handler.setFormatter(formatter)
@@ -59,8 +59,8 @@ def configure_logging() -> None:
     structured_file = settings.log_file.replace(".log", "_structured.json")
     structured_handler = RotatingFileHandler(
         structured_file,
-        maxBytes=5 * 1024 * 1024,
-        backupCount=5,
+        maxBytes=settings.log_structured_max_bytes,
+        backupCount=settings.log_structured_backup_count,
         encoding="utf-8",
     )
     structured_handler.setFormatter(StructuredFormatter())
