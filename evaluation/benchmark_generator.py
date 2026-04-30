@@ -3,12 +3,65 @@ from __future__ import annotations
 import json
 import os
 import random
-import re
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
+
+
+PROVINCE_DOC_MAP = {
+    "SN": {
+        "name": "陕西",
+        "docs": [
+            "陕西省2026年电力市场化交易实施方案",
+            "陕西电力现货市场交易实施细则",
+            "陕西电力中长期市场实施细则",
+            "陕西电力现货市场结算实施细则",
+            "陕西电力零售市场交易细则",
+            "陕西省电力零售市场交易细则",
+            "陕西省新型储能参与电力市场交易实施方案",
+            "陕西电力市场结算实施细则",
+            "陕西电力现货市场运营实施细则",
+            "陕西省独立储能参与电力市场实施细则",
+        ],
+        "weight": 0.40,
+    },
+    "SX": {
+        "name": "山西",
+        "docs": [
+            "山西电力中长期交易实施细则",
+            "山西电力市场规则体系",
+        ],
+        "weight": 0.15,
+    },
+    "GS": {
+        "name": "甘肃",
+        "docs": [
+            "甘肃电力现货市场运营实施细则",
+            "甘肃电力现货市场结算实施细则",
+            "甘肃电力现货市场管理细则",
+            "甘肃电力现货市场计量实施细则",
+        ],
+        "weight": 0.20,
+    },
+    "AH": {
+        "name": "安徽",
+        "docs": [
+            "安徽电力中长期市场实施细则",
+            "安徽电力现货电能量市场交易实施细则",
+        ],
+        "weight": 0.15,
+    },
+    "SD": {
+        "name": "山东",
+        "docs": [
+            "山东电力市场规则",
+        ],
+        "weight": 0.10,
+    },
+}
 
 
 @dataclass
@@ -26,6 +79,7 @@ class GeneratedQuestion:
     question_id: str
     question: str
     category: str
+    province: str
     expected_docs: List[str]
     expected_articles: List[str]
     expected_answer_keywords: List[str]
@@ -37,36 +91,36 @@ class GeneratedQuestion:
 
 QUESTION_TEMPLATES = {
     "clause_qa": [
-        "{主体}{年份}{规则类型}要求是什么？",
-        "{市场类型}的{具体规则}如何执行？",
-        "{主体}参与{市场类型}需要满足哪些条件？",
-        "{规则类型}的具体规定有哪些？",
-        "{时间维度}{市场类型}的{规则类型}是如何规定的？",
-        "{主体}在{市场类型}中的{规则类型}要求",
+        "{省份}{主体}{年份}{规则类型}要求是什么？",
+        "{省份}{市场类型}的{具体规则}如何执行？",
+        "{省份}{主体}参与{市场类型}需要满足哪些条件？",
+        "{省份}{规则类型}的具体规定有哪些？",
+        "{省份}{时间维度}{市场类型}的{规则类型}是如何规定的？",
+        "{省份}{主体}在{市场类型}中的{规则类型}要求",
         "{省份}{年份}{规则类型}的{具体条款}内容",
-        "{规则类型}对{主体}有什么影响？",
+        "{省份}{规则类型}对{主体}有什么影响？",
     ],
     "flow_qa": [
-        "{主体}参与{市场类型}的完整流程是什么？",
-        "{主体}注册{市场类型}需要哪些步骤？",
-        "{主体}准入{市场类型}的流程是怎样的？",
+        "{省份}{主体}参与{市场类型}的完整流程是什么？",
+        "{省份}{主体}注册{市场类型}需要哪些步骤？",
+        "{省份}{主体}准入{市场类型}的流程是怎样的？",
         "{省份}{主体}参与市场的详细流程",
-        "从注册到交易的完整流程是什么？",
-        "{主体}办理{市场类型}手续的流程",
+        "{省份}从注册到交易的完整流程是什么？",
+        "{省份}{主体}办理{市场类型}手续的流程",
     ],
     "compare_qa": [
         "{省份1}和{省份2}{规则类型}有什么区别？",
-        "对比{主体1}和{主体2}的{规则类型}要求",
-        "{市场类型1}和{市场类型2}的{规则类型}对比",
-        "{省份}不同年份{规则类型}的变化",
-        "{主体}在不同市场中的准入条件对比",
+        "对比{省份1}和{省份2}{规则类型}要求",
+        "{省份1}和{省份2}的{规则类型}对比",
+        "{省份1}和{省份2}结算周期的差异是什么？",
+        "比较{省份}和其他省份的储能参与市场政策",
     ],
     "settlement_qa": [
-        "{市场类型}的结算周期是多少？",
-        "{主体}的结算方式是什么？",
-        "{市场类型}的计量要求有哪些？",
-        "日清月结的具体流程是什么？",
-        "{主体}结算电费的计算方式",
+        "{省份}{市场类型}的结算周期是多少？",
+        "{省份}{主体}的结算方式是什么？",
+        "{省份}{市场类型}的计量要求有哪些？",
+        "{省份}日清月结的具体流程是什么？",
+        "{省份}{主体}结算电费的计算方式",
     ],
     "rejection": [
         "请介绍一下中国股市的最新政策",
@@ -80,7 +134,6 @@ QUESTION_TEMPLATES = {
 SUBJECTS = ["发电企业", "售电公司", "电力用户", "虚拟电厂", "独立储能", "新能源企业", "火电企业", "风电企业"]
 MARKETS = ["中长期", "现货", "零售", "辅助服务", "结算", "计量"]
 YEARS = ["2024", "2025", "2026"]
-PROVINCES = ["陕西", "山西", "山东", "广东", "江苏"]
 RULE_TYPES = ["签约比例", "准入条件", "价格机制", "结算规则", "计量要求", "交易流程", "报价规则"]
 TIME_DIMENSIONS = ["年度", "月度", "日前", "实时", "日内"]
 
@@ -129,6 +182,17 @@ class BenchmarkGenerator:
         except Exception:
             return ""
 
+    def _get_province_docs(self, province_code: str) -> List[str]:
+        return PROVINCE_DOC_MAP.get(province_code, {}).get("docs", [])
+
+    def _get_province_name(self, province_code: str) -> str:
+        return PROVINCE_DOC_MAP.get(province_code, {}).get("name", province_code)
+
+    def _select_province_by_weight(self) -> str:
+        codes = list(PROVINCE_DOC_MAP.keys())
+        weights = [PROVINCE_DOC_MAP[c]["weight"] for c in codes]
+        return random.choices(codes, weights=weights, k=1)[0]
+
     def generate_from_docs(
         self,
         docs_path: str,
@@ -171,7 +235,7 @@ class BenchmarkGenerator:
             doc = Document(
                 doc_name=file_path.stem,
                 doc_type="pdf",
-                province_code=self._extract_province(file_path.stem),
+                province_code=self._extract_province_code(file_path),
                 content="",
             )
             docs.append(doc)
@@ -180,18 +244,22 @@ class BenchmarkGenerator:
             doc = Document(
                 doc_name=file_path.stem,
                 doc_type="docx",
-                province_code=self._extract_province(file_path.stem),
+                province_code=self._extract_province_code(file_path),
                 content="",
             )
             docs.append(doc)
         
         return docs
 
-    def _extract_province(self, filename: str) -> str:
-        for province in PROVINCES:
-            if province in filename:
-                return province
-        return "陕西"
+    def _extract_province_code(self, file_path: Path) -> str:
+        parts = file_path.parts
+        for part in parts:
+            if part in PROVINCE_DOC_MAP:
+                return part
+        for code, info in PROVINCE_DOC_MAP.items():
+            if info["name"] in file_path.stem:
+                return code
+        return "SN"
 
     def _generate_clause_questions(
         self,
@@ -201,11 +269,14 @@ class BenchmarkGenerator:
         questions = []
         
         for _ in range(count):
+            province_code = self._select_province_by_weight()
+            province_name = self._get_province_name(province_code)
+            province_docs = self._get_province_docs(province_code)
+            
             template = random.choice(QUESTION_TEMPLATES["clause_qa"])
             subject = random.choice(SUBJECTS)
             market = random.choice(MARKETS)
             year = random.choice(YEARS)
-            province = random.choice(PROVINCES)
             rule_type = random.choice(RULE_TYPES)
             time_dim = random.choice(TIME_DIMENSIONS)
             
@@ -214,7 +285,7 @@ class BenchmarkGenerator:
                 年份=year,
                 市场类型=market,
                 规则类型=rule_type,
-                省份=province,
+                省份=province_name,
                 时间维度=time_dim,
                 具体规则=rule_type,
                 具体条款=random.choice(["准入条件", "签约比例", "价格上限"]),
@@ -223,11 +294,14 @@ class BenchmarkGenerator:
             length_type = self._classify_length(question_text)
             scope_type = random.choice(["微观条款", "宏观总结"])
             
+            expected_doc = random.choice(province_docs) if province_docs else f"{province_name}电力市场交易规则"
+            
             q = GeneratedQuestion(
                 question_id="",
                 question=question_text,
                 category="clause_qa",
-                expected_docs=[f"{province}{year}电力市场化交易实施方案"],
+                province=province_code,
+                expected_docs=[expected_doc],
                 expected_articles=["二、总体要求"],
                 expected_answer_keywords=[subject, market, rule_type],
                 should_reject=False,
@@ -250,22 +324,28 @@ class BenchmarkGenerator:
         flow_markets = ["现货市场", "中长期市场", "辅助服务市场"]
         
         for _ in range(count):
+            province_code = self._select_province_by_weight()
+            province_name = self._get_province_name(province_code)
+            province_docs = self._get_province_docs(province_code)
+            
             template = random.choice(QUESTION_TEMPLATES["flow_qa"])
             subject = random.choice(flow_subjects)
             market = random.choice(flow_markets)
-            province = random.choice(PROVINCES)
             
             question_text = template.format(
                 主体=subject,
                 市场类型=market,
-                省份=province,
+                省份=province_name,
             )
+            
+            expected_doc = random.choice(province_docs) if province_docs else f"{province_name}电力市场交易规则"
             
             q = GeneratedQuestion(
                 question_id="",
                 question=question_text,
                 category="flow_qa",
-                expected_docs=[f"{province}电力市场交易规则"],
+                province=province_code,
+                expected_docs=[expected_doc],
                 expected_articles=["三、准入流程"],
                 expected_answer_keywords=["注册", "准入", "审核", "签约"],
                 should_reject=False,
@@ -284,33 +364,38 @@ class BenchmarkGenerator:
     ) -> List[GeneratedQuestion]:
         questions = []
         
+        province_codes = list(PROVINCE_DOC_MAP.keys())
+        
         for _ in range(count):
             template = random.choice(QUESTION_TEMPLATES["compare_qa"])
-            province1 = random.choice(PROVINCES)
-            province2 = random.choice([p for p in PROVINCES if p != province1])
+            province_code1 = random.choice(province_codes)
+            province_code2 = random.choice([p for p in province_codes if p != province_code1])
+            province_name1 = self._get_province_name(province_code1)
+            province_name2 = self._get_province_name(province_code2)
+            province_docs1 = self._get_province_docs(province_code1)
+            province_docs2 = self._get_province_docs(province_code2)
+            
             rule_type = random.choice(RULE_TYPES)
-            subject1 = random.choice(SUBJECTS)
-            subject2 = random.choice([s for s in SUBJECTS if s != subject1])
-            market1 = random.choice(MARKETS)
-            market2 = random.choice([m for m in MARKETS if m != market1])
             
             question_text = template.format(
-                省份1=province1,
-                省份2=province2,
-                主体1=subject1,
-                主体2=subject2,
-                市场类型1=market1,
-                市场类型2=market2,
+                省份1=province_name1,
+                省份2=province_name2,
                 规则类型=rule_type,
-                主体=random.choice(SUBJECTS),
-                省份=random.choice(PROVINCES),
+                省份=random.choice([province_name1, province_name2]),
             )
+            
+            expected_docs = []
+            if province_docs1:
+                expected_docs.append(random.choice(province_docs1))
+            if province_docs2:
+                expected_docs.append(random.choice(province_docs2))
             
             q = GeneratedQuestion(
                 question_id="",
                 question=question_text,
                 category="compare_qa",
-                expected_docs=[f"{province1}电力市场交易规则", f"{province2}电力市场交易规则"],
+                province="MULTI",
+                expected_docs=expected_docs,
                 expected_articles=["准入条件", "价格机制"],
                 expected_answer_keywords=["区别", "对比", "差异"],
                 should_reject=False,
@@ -329,7 +414,17 @@ class BenchmarkGenerator:
     ) -> List[GeneratedQuestion]:
         questions = []
         
+        settlement_docs = []
+        for code, info in PROVINCE_DOC_MAP.items():
+            for doc in info["docs"]:
+                if "结算" in doc or "计量" in doc:
+                    settlement_docs.append((code, doc))
+        
         for _ in range(count):
+            province_code = self._select_province_by_weight()
+            province_name = self._get_province_name(province_code)
+            province_docs = self._get_province_docs(province_code)
+            
             template = random.choice(QUESTION_TEMPLATES["settlement_qa"])
             market = random.choice(MARKETS)
             subject = random.choice(SUBJECTS)
@@ -337,13 +432,23 @@ class BenchmarkGenerator:
             question_text = template.format(
                 市场类型=market,
                 主体=subject,
+                省份=province_name,
             )
+            
+            expected_doc = None
+            for doc in province_docs:
+                if "结算" in doc or "计量" in doc:
+                    expected_doc = doc
+                    break
+            if not expected_doc:
+                expected_doc = random.choice(province_docs) if province_docs else f"{province_name}电力市场结算规则"
             
             q = GeneratedQuestion(
                 question_id="",
                 question=question_text,
                 category="settlement_qa",
-                expected_docs=["电力市场结算规则"],
+                province=province_code,
+                expected_docs=[expected_doc],
                 expected_articles=["结算周期", "计量要求"],
                 expected_answer_keywords=["日清", "月结", "结算", "计量"],
                 should_reject=False,
@@ -368,6 +473,7 @@ class BenchmarkGenerator:
                 question_id="",
                 question=template,
                 category="rejection",
+                province="N/A",
                 expected_docs=[],
                 expected_articles=[],
                 expected_answer_keywords=["未检索到", "无法回答"],
@@ -394,10 +500,15 @@ class BenchmarkGenerator:
         questions: List[GeneratedQuestion],
         output_path: str,
     ) -> None:
+        province_counts: Dict[str, int] = {}
+        for q in questions:
+            province_counts[q.province] = province_counts.get(q.province, 0) + 1
+        
         data = {
-            "version": "v1.0",
-            "generated_at": str(Path(output_path).stat().st_mtime if Path(output_path).exists() else 0),
+            "version": "v3.0_multi_province",
+            "generated_at": datetime.now().isoformat(),
             "total_count": len(questions),
+            "province_scope": list(PROVINCE_DOC_MAP.keys()),
             "distribution": {
                 "clause_qa": len([q for q in questions if q.category == "clause_qa"]),
                 "flow_qa": len([q for q in questions if q.category == "flow_qa"]),
@@ -405,11 +516,13 @@ class BenchmarkGenerator:
                 "settlement_qa": len([q for q in questions if q.category == "settlement_qa"]),
                 "rejection": len([q for q in questions if q.category == "rejection"]),
             },
+            "province_distribution": province_counts,
             "questions": [
                 {
                     "question_id": q.question_id,
                     "question": q.question,
                     "category": q.category,
+                    "province": q.province,
                     "expected_docs": q.expected_docs,
                     "expected_articles": q.expected_articles,
                     "expected_answer_keywords": q.expected_answer_keywords,

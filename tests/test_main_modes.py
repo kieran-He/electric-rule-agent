@@ -1,20 +1,9 @@
-﻿import pytest
-from fastapi.testclient import TestClient
+﻿from fastapi.testclient import TestClient
 
 from app import main
 
 
 client = TestClient(main.app)
-
-
-@pytest.mark.skip(reason="ingest_enabled setting removed from config")
-def test_ingest_rejected_when_ingest_disabled(monkeypatch):
-    pass
-
-
-@pytest.mark.skip(reason="ingest_enabled setting removed from config")
-def test_ingest_allowed_when_ingest_enabled(monkeypatch):
-    pass
 
 
 def test_health_endpoint():
