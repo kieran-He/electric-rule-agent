@@ -138,6 +138,9 @@ class HybridQAOrchestrator:
                     query_expansion_max=self.settings.query_expansion_max,
                     use_query_rewrite=self.settings.query_rewrite_enabled,
                     query_rewrite_keep_original=self.settings.query_rewrite_keep_original,
+                    bm25_k1=self.settings.bm25_k1,
+                    bm25_b=self.settings.bm25_b,
+                    cache_dir="data/cache",
                 )
                 
                 logger.info(f"Hybrid retriever initialized: {self.hybrid_retriever.get_stats()}")
@@ -230,7 +233,7 @@ class HybridQAOrchestrator:
         from app.langchain.retriever_wrapper import format_chunks_for_context
         
         if not chunks:
-            return "未检索到相关文档，无法回答该问题。请尝试更换关键词或联系管理员确认文档库是否完整。", 0, 0
+            return self._web_search_fallback(query), 0, 0
         
         provincial_context = format_chunks_for_context(chunks)
         global_context = "- 无通用证据"
@@ -266,6 +269,32 @@ class HybridQAOrchestrator:
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
             return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0
+    
+    def _web_search_fallback(self, query: str) -> str:
+        """
+        Fallback to web search when no relevant documents found.
+        
+        Uses LLM's web search capability.
+        
+        Args:
+            query: User query
+            
+        Returns:
+            Answer string with disclaimer about non-knowledge-base content
+        """
+        logger.info(f"No chunks found, falling back to web search for query: {query}")
+        
+        system_prompt = "你是搜索助手，帮助用户从网络获取信息。请搜索并提供答案，注明信息来源。"
+        user_content = f"请搜索以下问题并提供答案：{query}\n\n注意：请注明信息来源。"
+        
+        try:
+            answer, _, _ = self.llm_wrapper.invoke(user_content, system=system_prompt)
+            if answer:
+                return f"⚠️ 此回答来自网络搜索，非知识库内容，仅供参考。\n\n{answer}"
+            return "未检索到相关文档，也无法通过网络搜索获取答案。请尝试更换关键词或联系管理员确认文档库是否完整。"
+        except Exception as e:
+            logger.error(f"Web search fallback failed: {e}")
+            return "未检索到相关文档，网络搜索服务暂时不可用。请尝试更换关键词或联系管理员确认文档库是否完整。"
     
     def _build_mock_answer(self, query: str, chunks: List[PolicyChunk]) -> str:
         """Build mock answer when LLM unavailable."""

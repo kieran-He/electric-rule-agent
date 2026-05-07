@@ -47,7 +47,7 @@ def ingest_processed_document_to_chroma(
     embeddings = _embed_texts(texts, model_name)
     
     ids = [f"{document.metadata.file_hash}_{i}" for i in range(len(texts))]
-    collection.add(ids=ids, documents=texts, metadatas=metadatas, embeddings=embeddings)
+    collection.upsert(ids=ids, documents=texts, metadatas=metadatas, embeddings=embeddings)
     
     return {"ingested_chunks": len(texts)}
 

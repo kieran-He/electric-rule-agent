@@ -7,7 +7,8 @@ Supports query expansion for improved recall.
 """
 from __future__ import annotations
 
-from typing import List, Optional
+import concurrent.futures
+from typing import Dict, List, Optional, Tuple
 import logging
 
 from app.core.repository import PolicyChunk, ChromaPolicyRepository
@@ -15,6 +16,7 @@ from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander
 from app.langchain.query_rewriter import QueryRewriter, RewriteResult
+from dataprocess.bm25_builder import ProvinceBM25Indexer
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,9 @@ class HybridRetriever:
         use_query_rewrite: bool = False,
         query_rewrite_keep_original: bool = True,
         rejection_threshold: Optional[float] = None,
+        bm25_k1: float = 1.5,
+        bm25_b: float = 0.6,
+        cache_dir: str = "data/cache",
     ):
         from app.langchain.llm import MiniMaxLLMWrapper
         self.vector_repo = vector_repo
@@ -157,6 +162,10 @@ class HybridRetriever:
         self.use_query_rewrite = use_query_rewrite
         self.query_rewrite_keep_original = query_rewrite_keep_original
         self.rejection_threshold = rejection_threshold
+        self.bm25_k1 = bm25_k1
+        self.bm25_b = bm25_b
+        self.cache_dir = cache_dir
+        self._bm25_indexers: Dict[str, ProvinceBM25Indexer] = {}
         self._supported_provinces: Optional[List[str]] = None
         self._last_rewrite_result: Optional[RewriteResult] = None
         
@@ -165,6 +174,20 @@ class HybridRetriever:
                 max_expansions=query_expansion_max,
                 llm_wrapper=llm_wrapper,
             )
+    
+    def _get_bm25_indexer(self, province_code: str) -> ProvinceBM25Indexer:
+        if province_code not in self._bm25_indexers:
+            indexer = ProvinceBM25Indexer(
+                province_code=province_code,
+                processed_dir=f"data/processed/{province_code}",
+                cache_dir=self.cache_dir,
+                k1=self.bm25_k1,
+                b=self.bm25_b,
+            )
+            indexer.build_index()
+            self._bm25_indexers[province_code] = indexer
+            logger.debug(f"Loaded BM25 indexer for province {province_code}")
+        return self._bm25_indexers[province_code]
     
     def _get_supported_provinces(self) -> List[str]:
         """
@@ -229,25 +252,8 @@ class HybridRetriever:
         all_candidates: List[PolicyChunk] = []
         
         for q in queries:
-            vector_chunks: List[PolicyChunk] = []
-            for province_code in valid_codes:
-                chunks = self.vector_repo.retrieve(
-                    query=q,
-                    top_k=self.vector_top_k,
-                    kb_scope="province",
-                    province_code=province_code,
-                )
-                vector_chunks.extend(chunks)
-            
-            bm25_results = self.bm25_indexer.search(q, top_k=self.bm25_top_k * 2)
-            bm25_chunks = [
-                chunk for chunk, score in bm25_results
-                if chunk.metadata.get("province_code", "UNKNOWN") in valid_codes or chunk.metadata.get("province_code", "UNKNOWN") == "UNKNOWN"
-            ]
-            bm25_chunks = bm25_chunks[:self.bm25_top_k]
-            
-            candidates = self._merge_and_deduplicate(vector_chunks, bm25_chunks)
-            all_candidates = self._merge_and_deduplicate(all_candidates, candidates)
+            province_candidates = self._retrieve_provinces_concurrent(q, valid_codes)
+            all_candidates = self._merge_and_deduplicate(all_candidates, province_candidates)
         
         if self.reranker.is_available() and len(all_candidates) > self.final_top_k:
             final_chunks = self.reranker.rerank(rerank_query, all_candidates, top_k=self.final_top_k)
@@ -262,6 +268,49 @@ class HybridRetriever:
                 return [], valid_codes
         
         return final_chunks, valid_codes
+    
+    def _retrieve_provinces_concurrent(self, query: str, province_codes: List[str]) -> List[PolicyChunk]:
+        all_chunks: List[PolicyChunk] = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(self._retrieve_province, query, code): code
+                for code in province_codes
+            }
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    chunks = future.result()
+                    all_chunks.extend(chunks)
+                except Exception as e:
+                    province_code = futures[future]
+                    logger.warning(f"Failed to retrieve from province {province_code}: {e}")
+        
+        return all_chunks
+    
+    def _retrieve_province(self, query: str, province_code: str) -> List[PolicyChunk]:
+        vector_chunks = self.vector_repo.retrieve(
+            query=query,
+            top_k=self.vector_top_k,
+            kb_scope="province",
+            province_code=province_code,
+        )
+        
+        try:
+            bm25_indexer = self._get_bm25_indexer(province_code)
+            bm25_results = bm25_indexer.search(query, top_k=self.bm25_top_k)
+            bm25_chunks = []
+            for chunk_data, score in bm25_results:
+                chunk = PolicyChunk(
+                    text=chunk_data["text"],
+                    score=float(score),
+                    metadata=chunk_data["metadata"],
+                )
+                bm25_chunks.append(chunk)
+        except Exception as e:
+            logger.warning(f"BM25 search failed for province {province_code}: {e}, using vector only")
+            bm25_chunks = []
+        
+        return self._merge_and_deduplicate(vector_chunks, bm25_chunks)
     
     def _rewrite_query(self, query: str) -> List[str]:
         """

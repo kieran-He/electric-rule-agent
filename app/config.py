@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 
 from dotenv import load_dotenv
 
@@ -70,6 +71,11 @@ class Settings:
     @property
     def is_sqlite(self) -> bool:
         return self.database_url.startswith("sqlite")
+
+    @property
+    def province_defaults(self) -> List[str]:
+        codes = [c.strip().upper() for c in self.province_default.split(",") if c.strip()]
+        return codes if codes else ["SN"]
 
     def ensure_dirs(self) -> None:
         for raw_path in [self.log_file, self.chroma_path, self.docs_root, "data/processed"]:

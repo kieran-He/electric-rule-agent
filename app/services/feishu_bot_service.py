@@ -85,22 +85,7 @@ class FeishuBotService:
         return text.strip()
 
     def _format_reply(self, answer: QueryAnswer) -> str:
-        from dataprocess.province_mapping import get_province_name
-        
-        province_info = ""
-        if answer.detected_provinces:
-            codes = [c.strip() for c in answer.detected_provinces.split(",") if c.strip()]
-            if codes:
-                province_names = []
-                for code in codes:
-                    name = get_province_name(code)
-                    if name:
-                        province_names.append(f"{name}({code})")
-                    else:
-                        province_names.append(code)
-                province_info = f"📍 已识别省份：{', '.join(province_names)}\n\n"
-        
-        return province_info + answer.answer
+        return answer.answer
 
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:
@@ -142,7 +127,7 @@ class FeishuBotService:
         request = QueryRequest(
             query=text,
             session_id=session_id,
-            province_codes=[self.settings.province_default],
+            province_codes=self.settings.province_defaults,
         )
         
         try:
