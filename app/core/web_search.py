@@ -4,7 +4,7 @@ Web Search Client using Tavily API
 Provides real-time web search capability for RAG fallback.
 """
 import logging
-from typing import Optional
+from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +48,19 @@ class WebSearchClient:
                 raise ImportError("tavily-python package required for web search")
         return self._client
     
-    def search(self, query: str) -> list[dict]:
+    def search(
+        self,
+        query: str,
+        search_depth: Optional[str] = None,
+        include_domains: Optional[List[str]] = None,
+    ) -> list[dict]:
         """
         Search web for query and return structured results.
         
         Args:
             query: Search query string
+            search_depth: "basic" or "advanced" (default: self.search_depth)
+            include_domains: List of domains to prioritize (e.g., ["gov.cn"])
             
         Returns:
             List of results with title, content, url fields
@@ -67,13 +74,19 @@ class WebSearchClient:
         """
         try:
             client = self._get_client()
-            logger.info(f"Searching web for: {query[:50]}")
+            depth = search_depth or self.search_depth
             
-            response = client.search(
-                query=query,
-                max_results=self.max_results,
-                search_depth=self.search_depth,
-            )
+            search_params = {
+                "query": query,
+                "max_results": self.max_results,
+                "search_depth": depth,
+            }
+            if include_domains:
+                search_params["include_domains"] = include_domains
+            
+            logger.info(f"Searching web for: {query[:50]} (depth={depth}, domains={include_domains})")
+            
+            response = client.search(**search_params)
             
             results = response.get("results", [])
             logger.info(f"Found {len(results)} web results")
@@ -133,4 +146,5 @@ def create_web_search_client(settings) -> Optional[WebSearchClient]:
     return WebSearchClient(
         api_key=settings.tavily_api_key,
         max_results=settings.web_search_max_results,
+        search_depth=getattr(settings, 'web_search_depth', 'advanced'),
     )

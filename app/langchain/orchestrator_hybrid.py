@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 import time
 import uuid
-from typing import Any, List, Tuple, TYPE_CHECKING
+from typing import Any, List, Optional, Tuple, TYPE_CHECKING
 import logging
 
 from sqlalchemy.orm import Session
@@ -22,7 +22,7 @@ from app.schemas.query import QueryRequest
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker
 from app.langchain.query_expander import QueryExpander
-from app.langchain.query_rewriter import QueryRewriter
+from app.langchain.query_rewriter import QueryRewriter, RewriteResult
 from app.langchain.reranker_cache import preload_reranker
 from app.langchain.llm import MiniMaxLLMWrapper
 if TYPE_CHECKING:
@@ -231,6 +231,7 @@ class HybridQAOrchestrator:
         chunks: List[PolicyChunk],
         province_code: str,
         history: list[str] = None,
+        rewrite_result: Optional[RewriteResult] = None,
     ) -> tuple[str, int, int]:
         """
         Generate answer using LangChain LLM with token counts.
@@ -240,6 +241,7 @@ class HybridQAOrchestrator:
             chunks: Retrieved chunks
             province_code: Province code for context
             history: Conversation history list
+            rewrite_result: Optional rewrite result for web search optimization
             
         Returns:
             Tuple of (answer string, input_tokens, output_tokens)
@@ -247,7 +249,7 @@ class HybridQAOrchestrator:
         from app.langchain.retriever_wrapper import format_chunks_for_context
         
         if not chunks:
-            return self._web_search_fallback(query), 0, 0
+            return self._web_search_fallback(query, rewrite_result), 0, 0
         
         provincial_context = format_chunks_for_context(chunks)
         global_context = "- 无通用证据"
@@ -284,7 +286,7 @@ class HybridQAOrchestrator:
                 web_search_enabled = getattr(self.settings, 'web_search_on_insufficient_evidence', True)
                 if web_search_enabled:
                     logger.info(f"Evidence insufficient detected, triggering web search for: {query}")
-                    web_answer = self._web_search_fallback(query)
+                    web_answer = self._web_search_fallback(query, rewrite_result)
                     combined_answer = f"{answer}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}"
                     return combined_answer, input_tokens, output_tokens
             
@@ -293,7 +295,11 @@ class HybridQAOrchestrator:
             logger.error(f"LLM invoke failed: {e}")
             return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0
     
-    def _web_search_fallback(self, query: str) -> str:
+    def _web_search_fallback(
+        self,
+        query: str,
+        rewrite_result: Optional[RewriteResult] = None,
+    ) -> str:
         """
         Fallback to web search when no relevant documents found.
         
@@ -302,15 +308,27 @@ class HybridQAOrchestrator:
         
         Args:
             query: User query
+            rewrite_result: Optional rewrite result for optimized search query
             
         Returns:
             Answer string with disclaimer about non-knowledge-base content
         """
-        logger.info(f"No chunks found, falling back to web search for query: {query}")
+        search_query = query
+        if rewrite_result and rewrite_result.triggered:
+            search_query = rewrite_result.rewritten_query
+            logger.info(f"Using rewritten query for web search: {search_query}")
+        
+        logger.info(f"No chunks found, falling back to web search for query: {search_query}")
         
         if self.web_search_client and self.web_search_client.is_available():
             try:
-                results = self.web_search_client.search(query)
+                include_gov = getattr(self.settings, 'web_search_include_gov', True)
+                domains = ["gov.cn"] if include_gov else None
+                
+                results = self.web_search_client.search(
+                    query=search_query,
+                    include_domains=domains,
+                )
                 if results:
                     context = self.web_search_client.format_results_for_context(results)
                     
@@ -411,7 +429,7 @@ class HybridQAOrchestrator:
         
         llm_start = time.time()
         answer, input_tokens, output_tokens = self._generate_answer_with_tokens(
-            req.query, chunks, province_code, history or []
+            req.query, chunks, province_code, history or [], rewrite_result
         )
         llm_latency = int((time.time() - llm_start) * 1000)
         metrics_store.record_latency(llm_latency, "llm")

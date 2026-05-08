@@ -176,6 +176,7 @@ class HybridRetriever:
         self._bm25_indexers: Dict[str, ProvinceBM25Indexer] = {}
         self._supported_provinces: Optional[List[str]] = None
         self._last_rewrite_result: Optional[RewriteResult] = None
+        self._last_expanded_queries: Optional[List[str]] = None
         
         if use_query_expansion and self.query_expander is None:
             self.query_expander = QueryExpander(
@@ -403,6 +404,7 @@ class HybridRetriever:
                 unique.append(q)
         
         logger.debug(f"Queries expanded: {len(queries)} -> {len(unique)}")
+        self._last_expanded_queries = unique
         return unique
     
     def _expand_query(self, query: str) -> List[str]:
