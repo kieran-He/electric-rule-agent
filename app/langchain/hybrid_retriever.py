@@ -145,6 +145,10 @@ class HybridRetriever:
         bm25_k1: float = 1.5,
         bm25_b: float = 0.6,
         cache_dir: str = "data/cache",
+        use_rrf_fusion: bool = True,
+        rrf_k: int = 60,
+        rrf_stage1_top_k: int = 15,
+        rrf_stage2_top_k: int = 20,
     ):
         from app.langchain.llm import MiniMaxLLMWrapper
         self.vector_repo = vector_repo
@@ -165,6 +169,10 @@ class HybridRetriever:
         self.bm25_k1 = bm25_k1
         self.bm25_b = bm25_b
         self.cache_dir = cache_dir
+        self.use_rrf_fusion = use_rrf_fusion
+        self.rrf_k = rrf_k
+        self.rrf_stage1_top_k = rrf_stage1_top_k
+        self.rrf_stage2_top_k = rrf_stage2_top_k
         self._bm25_indexers: Dict[str, ProvinceBM25Indexer] = {}
         self._supported_provinces: Optional[List[str]] = None
         self._last_rewrite_result: Optional[RewriteResult] = None
@@ -249,16 +257,30 @@ class HybridRetriever:
         
         queries = self._expand_queries(rewritten_queries)
         
-        all_candidates: List[PolicyChunk] = []
-        
+        per_query_results: List[List[PolicyChunk]] = []
         for q in queries:
-            province_candidates = self._retrieve_provinces_concurrent(q, valid_codes)
-            all_candidates = self._merge_and_deduplicate(all_candidates, province_candidates)
+            query_candidates = self._retrieve_provinces_concurrent(q, valid_codes)
+            per_query_results.append(query_candidates)
+        
+        if self.use_rrf_fusion and len(per_query_results) > 1:
+            all_candidates = self._rrf_fusion_stage2(
+                per_query_results,
+                k=self.rrf_k,
+                top_k=self.rrf_stage2_top_k,
+            )
+        elif self.use_rrf_fusion and len(per_query_results) == 1:
+            all_candidates = per_query_results[0]
+        else:
+            all_candidates = []
+            for results in per_query_results:
+                all_candidates.extend(results)
+            all_candidates = self._merge_and_deduplicate(all_candidates, [])
         
         if self.reranker.is_available() and len(all_candidates) > self.final_top_k:
             final_chunks = self.reranker.rerank(rerank_query, all_candidates, top_k=self.final_top_k)
         else:
-            final_chunks = all_candidates[:self.final_top_k]
+            actual_final_k = min(self.final_top_k, len(all_candidates))
+            final_chunks = all_candidates[:actual_final_k]
         
         logger.debug(f"Rerank using query: '{rerank_query}' (all queries: {queries})")
         
@@ -310,7 +332,14 @@ class HybridRetriever:
             logger.warning(f"BM25 search failed for province {province_code}: {e}, using vector only")
             bm25_chunks = []
         
-        return self._merge_and_deduplicate(vector_chunks, bm25_chunks)
+        if self.use_rrf_fusion:
+            return self._rrf_fusion_stage1(
+                vector_chunks, bm25_chunks,
+                k=self.rrf_k,
+                top_k=self.rrf_stage1_top_k,
+            )
+        else:
+            return self._merge_and_deduplicate(vector_chunks, bm25_chunks)
     
     def _rewrite_query(self, query: str) -> List[str]:
         """
@@ -414,6 +443,81 @@ class HybridRetriever:
         
         return candidates
     
+    def _rrf_fusion_stage1(
+        self,
+        vector_chunks: List[PolicyChunk],
+        bm25_chunks: List[PolicyChunk],
+        k: int = 60,
+        top_k: int = 15,
+    ) -> List[PolicyChunk]:
+        """
+        Stage1 RRF: Single query internal Vector + BM25 fusion.
+        
+        Formula: RRF(d) = 1/(k + rank_vector) + 1/(k + rank_bm25)
+        """
+        rrf_scores: Dict[int, float] = {}
+        chunk_map: Dict[int, PolicyChunk] = {}
+        
+        for rank, chunk in enumerate(vector_chunks, start=1):
+            chunk_hash = hash(chunk.text[:100])
+            if chunk_hash not in rrf_scores:
+                rrf_scores[chunk_hash] = 0.0
+                chunk_map[chunk_hash] = chunk
+            rrf_scores[chunk_hash] += 1.0 / (k + rank)
+        
+        for rank, chunk in enumerate(bm25_chunks, start=1):
+            chunk_hash = hash(chunk.text[:100])
+            if chunk_hash not in rrf_scores:
+                rrf_scores[chunk_hash] = 0.0
+                chunk_map[chunk_hash] = chunk
+            rrf_scores[chunk_hash] += 1.0 / (k + rank)
+        
+        sorted_hashes = sorted(rrf_scores.keys(), key=lambda h: rrf_scores[h], reverse=True)
+        
+        results = []
+        actual_top_k = min(top_k, len(sorted_hashes))
+        for h in sorted_hashes[:actual_top_k]:
+            chunk = chunk_map[h]
+            chunk.score = rrf_scores[h]
+            results.append(chunk)
+        
+        return results
+    
+    def _rrf_fusion_stage2(
+        self,
+        per_query_results: List[List[PolicyChunk]],
+        k: int = 60,
+        top_k: int = 20,
+    ) -> List[PolicyChunk]:
+        """
+        Stage2 RRF: Cross-query aggregation fusion.
+        
+        Each query's internal RRF results as input.
+        Formula: RRF(d) = sum(1/(k + rank_query_i)) for all queries
+        """
+        rrf_scores: Dict[int, float] = {}
+        chunk_map: Dict[int, PolicyChunk] = {}
+        
+        for query_results in per_query_results:
+            for rank, chunk in enumerate(query_results, start=1):
+                chunk_hash = hash(chunk.text[:100])
+                if chunk_hash not in rrf_scores:
+                    rrf_scores[chunk_hash] = 0.0
+                    chunk_map[chunk_hash] = chunk
+                rrf_scores[chunk_hash] += 1.0 / (k + rank)
+        
+        sorted_hashes = sorted(rrf_scores.keys(), key=lambda h: rrf_scores[h], reverse=True)
+        
+        results = []
+        actual_top_k = min(top_k, len(sorted_hashes))
+        for h in sorted_hashes[:actual_top_k]:
+            chunk = chunk_map[h]
+            chunk.score = rrf_scores[h]
+            results.append(chunk)
+        
+        logger.debug(f"RRF Stage2: {len(sorted_hashes)} candidates -> {len(results)} results (top_k={top_k})")
+        return results
+    
     def get_stats(self) -> dict:
         """Get retrieval statistics."""
         stats = {
@@ -430,6 +534,10 @@ class HybridRetriever:
             "query_rewrite_keep_original": self.query_rewrite_keep_original,
             "rejection_threshold": self.rejection_threshold,
             "llm_available": self.llm_wrapper is not None,
+            "use_rrf_fusion": self.use_rrf_fusion,
+            "rrf_k": self.rrf_k,
+            "rrf_stage1_top_k": self.rrf_stage1_top_k,
+            "rrf_stage2_top_k": self.rrf_stage2_top_k,
         }
         
         if self.query_expander:

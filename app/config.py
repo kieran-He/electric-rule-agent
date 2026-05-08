@@ -72,6 +72,10 @@ class Settings:
     feishu_app_id: str = _env("FEISHU_APP_ID", "")
     feishu_app_secret: str = _env("FEISHU_APP_SECRET", "")
     feishu_max_workers: int = int(_env("FEISHU_MAX_WORKERS", "10"))
+    rrf_k: int = int(_env("RRF_K", "60"))
+    rrf_stage1_top_k: int = int(_env("RRF_STAGE1_TOP_K", "15"))
+    rrf_stage2_top_k: int = int(_env("RRF_STAGE2_TOP_K", "20"))
+    use_rrf_fusion: bool = _env("USE_RRF_FUSION", "true").lower() == "true"
 
     @property
     def is_sqlite(self) -> bool:

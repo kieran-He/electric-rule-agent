@@ -144,6 +144,10 @@ class HybridQAOrchestrator:
                     bm25_k1=self.settings.bm25_k1,
                     bm25_b=self.settings.bm25_b,
                     cache_dir="data/cache",
+                    use_rrf_fusion=self.settings.use_rrf_fusion,
+                    rrf_k=self.settings.rrf_k,
+                    rrf_stage1_top_k=self.settings.rrf_stage1_top_k,
+                    rrf_stage2_top_k=self.settings.rrf_stage2_top_k,
                 )
                 
                 logger.info(f"Hybrid retriever initialized: {self.hybrid_retriever.get_stats()}")
