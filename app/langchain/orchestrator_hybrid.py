@@ -82,6 +82,9 @@ class HybridQAOrchestrator:
         self.bm25_top_k = bm25_top_k
         self.final_top_k = final_top_k
         
+        from app.core.web_search import create_web_search_client
+        self.web_search_client = create_web_search_client(self.settings)
+        
         if use_hybrid:
             self._init_hybrid_retriever()
         else:
@@ -211,6 +214,13 @@ class HybridQAOrchestrator:
                 detected.append(code)
         return detected if detected else default_codes
     
+    def _contains_insufficient_evidence(self, answer: str) -> bool:
+        """Check if answer indicates insufficient evidence."""
+        keywords_str = getattr(self.settings, 'insufficient_evidence_keywords', 
+                               "未检索到充分依据,证据不足,未找到相关信息,无法确定,未找到充分证据,知识库中无相关")
+        keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
+        return any(kw in answer for kw in keywords)
+    
     def _generate_answer_with_tokens(
         self,
         query: str,
@@ -265,6 +275,15 @@ class HybridQAOrchestrator:
             answer, input_tokens, output_tokens = self.llm_wrapper.invoke(user_content, system=system_prompt)
             if not answer:
                 return self._build_mock_answer(query, chunks), input_tokens, output_tokens
+            
+            if self._contains_insufficient_evidence(answer):
+                web_search_enabled = getattr(self.settings, 'web_search_on_insufficient_evidence', True)
+                if web_search_enabled:
+                    logger.info(f"Evidence insufficient detected, triggering web search for: {query}")
+                    web_answer = self._web_search_fallback(query)
+                    combined_answer = f"{answer}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}"
+                    return combined_answer, input_tokens, output_tokens
+            
             return answer, input_tokens, output_tokens
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
@@ -274,7 +293,8 @@ class HybridQAOrchestrator:
         """
         Fallback to web search when no relevant documents found.
         
-        Uses LLM's web search capability.
+        Uses Tavily API for real-time web search (if configured),
+        otherwise uses LLM to attempt answering without evidence.
         
         Args:
             query: User query
@@ -284,16 +304,43 @@ class HybridQAOrchestrator:
         """
         logger.info(f"No chunks found, falling back to web search for query: {query}")
         
-        system_prompt = "你是搜索助手，帮助用户从网络获取信息。请搜索并提供答案，注明信息来源。"
-        user_content = f"请搜索以下问题并提供答案：{query}\n\n注意：请注明信息来源。"
+        if self.web_search_client and self.web_search_client.is_available():
+            try:
+                results = self.web_search_client.search(query)
+                if results:
+                    context = self.web_search_client.format_results_for_context(results)
+                    
+                    system_prompt = """你是电力政策问答助手，根据网络搜索结果回答用户问题。
+
+回答要求：
+1. 基于搜索结果回答，不要编造信息
+2. 禁止提及来源、证据出处等引用信息
+3. 简洁清晰，直接回答问题核心
+4. 如搜索结果不足以回答，明确说明"""
+                    
+                    user_content = f"""问题：{query}
+
+网络搜索结果：
+{context}
+
+请根据上述搜索结果回答问题。"""
+                    
+                    answer, _, _ = self.llm_wrapper.invoke(user_content, system=system_prompt)
+                    if answer:
+                        return f"⚠️ 此回答来自网络搜索，非知识库内容，仅供参考。\n\n{answer}"
+            except Exception as e:
+                logger.error(f"Web search with Tavily failed: {e}")
+        
+        system_prompt = "你是搜索助手，帮助用户从网络获取信息。请尝试回答问题，如无法回答请明确说明。"
+        user_content = f"请回答以下问题：{query}\n\n注意：如果无法确定答案，请明确说明。"
         
         try:
             answer, _, _ = self.llm_wrapper.invoke(user_content, system=system_prompt)
             if answer:
-                return f"⚠️ 此回答来自网络搜索，非知识库内容，仅供参考。\n\n{answer}"
+                return f"⚠️ 知识库无相关文档，此回答为LLM尝试回答，仅供参考。\n\n{answer}"
             return "未检索到相关文档，也无法通过网络搜索获取答案。请尝试更换关键词或联系管理员确认文档库是否完整。"
         except Exception as e:
-            logger.error(f"Web search fallback failed: {e}")
+            logger.error(f"LLM fallback failed: {e}")
             return "未检索到相关文档，网络搜索服务暂时不可用。请尝试更换关键词或联系管理员确认文档库是否完整。"
     
     def _build_mock_answer(self, query: str, chunks: List[PolicyChunk]) -> str:

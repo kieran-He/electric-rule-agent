@@ -62,6 +62,11 @@ class Settings:
     query_rewrite_keep_original: bool = _env("QUERY_REWRITE_KEEP_ORIGINAL", "true").lower() == "true"
     query_rewrite_always: bool = _env("QUERY_REWRITE_ALWAYS", "true").lower() == "true"
     llm_timeout_seconds: int = int(_env("LLM_TIMEOUT_SECONDS", "120"))
+    tavily_api_key: str = _env("TAVILY_API_KEY", "")
+    web_search_enabled: bool = _env("WEB_SEARCH_ENABLED", "true").lower() == "true"
+    web_search_max_results: int = int(_env("WEB_SEARCH_MAX_RESULTS", "5"))
+    web_search_on_insufficient_evidence: bool = _env("WEB_SEARCH_ON_INSUFFICIENT_EVIDENCE", "true").lower() == "true"
+    insufficient_evidence_keywords: str = _env("INSUFFICIENT_EVIDENCE_KEYWORDS", "未检索到充分依据,证据不足,未找到相关信息,无法确定,未找到充分证据,知识库中无相关,如需获取确定性答案,建议检索,未能找到,暂无相关,没有找到,文档中未提及,检索结果中没有,没有相关信息,无法提供确切")
     feishu_webhook_url: str = _env("FEISHU_WEBHOOK_URL", "")
     feishu_alert_enabled: bool = _env("FEISHU_ALERT_ENABLED", "false").lower() == "true"
     feishu_app_id: str = _env("FEISHU_APP_ID", "")
