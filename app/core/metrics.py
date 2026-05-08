@@ -26,6 +26,7 @@ class MetricsStore:
     _token_counts: List[MetricPoint] = field(default_factory=list)
     _query_counts: Dict[str, int] = field(default_factory=dict)
     _error_counts: Dict[str, int] = field(default_factory=dict)
+    _cache_stats: Dict[str, dict] = field(default_factory=dict)
     
     def record_latency(self, latency_ms: float, category: str = "total"):
         with self._lock:
@@ -60,6 +61,43 @@ class MetricsStore:
         with self._lock:
             self._error_counts[error_type] = self._error_counts.get(error_type, 0) + 1
     
+    def record_cache_stats(
+        self,
+        cache_type: str,
+        hits: int,
+        misses: int,
+        size: int
+    ):
+        """Record cache statistics."""
+        with self._lock:
+            if cache_type not in self._cache_stats:
+                self._cache_stats[cache_type] = {
+                    "total_hits": 0,
+                    "total_misses": 0,
+                    "current_size": 0,
+                }
+            
+            self._cache_stats[cache_type]["total_hits"] = hits
+            self._cache_stats[cache_type]["total_misses"] = misses
+            self._cache_stats[cache_type]["current_size"] = size
+    
+    def get_cache_report(self) -> dict:
+        """Get cache report."""
+        with self._lock:
+            report = {}
+            for cache_type, stats in self._cache_stats.items():
+                total = stats["total_hits"] + stats["total_misses"]
+                hit_rate = stats["total_hits"] / total * 100 if total > 0 else 0
+                
+                report[cache_type] = {
+                    "hits": stats["total_hits"],
+                    "misses": stats["total_misses"],
+                    "hit_rate": f"{hit_rate:.1f}%",
+                    "size": stats["current_size"],
+                }
+            
+            return report
+    
     def get_summary(self) -> dict:
         with self._lock:
             def avg(points: List[MetricPoint]) -> float:
@@ -67,7 +105,7 @@ class MetricsStore:
                     return 0.0
                 return sum(p.value for p in points) / len(points)
             
-            return {
+            summary = {
                 "latency_avg_ms": avg(self._latency_samples),
                 "retrieval_latency_avg_ms": avg(self._retrieval_latency),
                 "llm_latency_avg_ms": avg(self._llm_latency),
@@ -76,6 +114,21 @@ class MetricsStore:
                 "error_counts": dict(self._error_counts),
                 "samples_count": len(self._latency_samples),
             }
+            
+            if self._cache_stats:
+                cache_report = {}
+                for cache_type, stats in self._cache_stats.items():
+                    total = stats["total_hits"] + stats["total_misses"]
+                    hit_rate = stats["total_hits"] / total * 100 if total > 0 else 0
+                    cache_report[cache_type] = {
+                        "hits": stats["total_hits"],
+                        "misses": stats["total_misses"],
+                        "hit_rate": f"{hit_rate:.1f}%",
+                        "size": stats["current_size"],
+                    }
+                summary["cache_stats"] = cache_report
+            
+            return summary
     
     def clear(self):
         with self._lock:
@@ -85,6 +138,7 @@ class MetricsStore:
             self._token_counts.clear()
             self._query_counts.clear()
             self._error_counts.clear()
+            self._cache_stats.clear()
     
     def save_to_db(
         self,

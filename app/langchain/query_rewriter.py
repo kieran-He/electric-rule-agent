@@ -20,12 +20,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class QueryPlan:
+    """Single query plan for retrieval."""
+    query: str
+    province_codes: List[str]
+
+
+@dataclass
 class RewriteResult:
-    rewritten_query: str
-    confidence: float
+    """Rewrite result supporting multi-query splitting."""
+    queries: List[QueryPlan]
+    should_split: bool
+    split_reason: str
     triggered: bool
     trigger_reason: str
-    province_codes: Optional[List[str]] = None
+    
+    @property
+    def rewritten_query(self) -> str:
+        """Return first query (backward compatible)."""
+        return self.queries[0].query if self.queries else ""
+    
+    @property
+    def province_codes(self) -> List[str]:
+        """Return first query's provinces (backward compatible)."""
+        return self.queries[0].province_codes if self.queries else []
 
 
 class QueryRewriter:
@@ -51,6 +69,7 @@ class QueryRewriter:
 任务：
 1. 改写查询：补充领域关键词，去除口语化表达
 2. 识别省份：提取用户提到的省份（中文或代码）
+3. 拆分查询：如果查询涉及多个省份或多个市场类型，拆分为独立的子查询
 
 省份映射（中文→代码）：
 山西=SX, 陕西=SN, 甘肃=GS, 山东=SD, 安徽=AH
@@ -63,24 +82,38 @@ class QueryRewriter:
 
 输出JSON格式：
 {
-  "rewritten": "改写后的查询",
-  "province_codes": ["SN"]
+  "queries": [
+    {"query": "改写后的查询1", "province_codes": ["SD"]},
+    {"query": "改写后的查询2", "province_codes": ["HI"]}
+  ],
+  "should_split": true,
+  "split_reason": "拆分原因（如：多省份查询需分别检索）"
 }
 
-规则：
-- province_codes: 提取的省份代码列表（大写）
-- 未提及任何省份时返回空数组 []
-- 用户提及多个省份时返回多个代码，如 ["SN", "GS"]
+拆分规则：
+1. 多省份查询：拆分为每个省份的独立查询
+2. 单省份查询：返回单个查询对象
+3. 无省份查询：province_codes为空数组 []
 
 示例：
-输入："山西的电力市场规则是什么"
-输出：{"rewritten": "山西省电力市场规则细则", "province_codes": ["SX"]}
+输入："山东海南中长期电力市场交易对发电量的要求"
+输出：{
+  "queries": [
+    {"query": "山东省中长期电力市场交易规则对发电量的要求", "province_codes": ["SD"]},
+    {"query": "海南省中长期电力市场交易规则对发电量的要求", "province_codes": ["HI"]}
+  ],
+  "should_split": true,
+  "split_reason": "涉及山东和海南两省份，需分别检索"
+}
 
-输入："陕西和甘肃的中长期交易有什么区别"
-输出：{"rewritten": "陕西省与甘肃省中长期电力交易规则对比", "province_codes": ["SN", "GS"]}
-
-输入："2026年交易时间表"
-输出：{"rewritten": "2026年电力市场交易时间安排表", "province_codes": []}"""
+输入："陕西现货市场交易时间"
+输出：{
+  "queries": [
+    {"query": "陕西省现货市场交易时间安排", "province_codes": ["SN"]}
+  ],
+  "should_split": false,
+  "split_reason": "单省份查询无需拆分"
+}"""
 
     def __init__(
         self,
@@ -94,63 +127,103 @@ class QueryRewriter:
     
     def rewrite(self, query: str) -> RewriteResult:
         """
-        Execute query rewrite (triggers LLM call when always_rewrite=True).
+        Execute query rewrite with splitting support.
         
         Args:
             query: Original query
             
         Returns:
-            RewriteResult with rewritten query, province codes, and metadata
+            RewriteResult with queries, should_split, and metadata
         """
-        if not self.enabled:
+        if not self.enabled or not self.always_rewrite or not self.llm:
             fallback_codes = self._extract_provinces_fallback(query)
-            return RewriteResult(query, 1.0, False, "disabled", fallback_codes)
-        
-        if not self.always_rewrite:
-            fallback_codes = self._extract_provinces_fallback(query)
-            return RewriteResult(query, 1.0, False, "skip_rewrite", fallback_codes)
-        
-        if not self.llm:
-            logger.warning("LLM wrapper not available, returning original query")
-            fallback_codes = self._extract_provinces_fallback(query)
-            return RewriteResult(query, 0.0, False, "no_llm", fallback_codes)
+            return RewriteResult(
+                queries=[QueryPlan(query, fallback_codes)],
+                should_split=False,
+                split_reason="disabled_or_no_llm",
+                triggered=False,
+                trigger_reason="disabled"
+            )
         
         try:
-            prompt = f"用户查询：{query}\n\n请分析并改写此查询："
+            prompt = f"用户查询：{query}\n\n请分析、改写并拆分此查询："
             result = self.llm.invoke_text(prompt, system=self.SYSTEM_PROMPT)
             
-            rewritten, province_codes = self._parse_result(result, query)
+            queries, should_split, reason = self._parse_result(result, query)
             
-            logger.info(f"Query rewritten: '{query}' -> '{rewritten}', provinces: {province_codes}")
-            return RewriteResult(rewritten, 0.8, True, "llm_rewrite", province_codes)
+            logger.info(f"Query rewritten: '{query}' -> {len(queries)} queries, should_split={should_split}")
+            for i, qp in enumerate(queries):
+                logger.info(f"  Query {i+1}: '{qp.query}', provinces: {qp.province_codes}")
+            
+            return RewriteResult(
+                queries=queries,
+                should_split=should_split,
+                split_reason=reason,
+                triggered=True,
+                trigger_reason="llm_rewrite_and_split"
+            )
             
         except Exception as e:
-            logger.warning(f"Query rewrite failed: {e}, returning original")
+            logger.warning(f"Query rewrite failed: {e}")
             fallback_codes = self._extract_provinces_fallback(query)
-            return RewriteResult(query, 0.0, False, f"error: {e}", fallback_codes)
+            return RewriteResult(
+                queries=[QueryPlan(query, fallback_codes)],
+                should_split=False,
+                split_reason=f"error: {e}",
+                triggered=False,
+                trigger_reason="error"
+            )
     
-    def _parse_result(self, result: str, original_query: str) -> Tuple[str, List[str]]:
-        """Parse LLM result to extract rewritten query and province codes."""
+    def _parse_result(self, result: str, original_query: str) -> Tuple[List[QueryPlan], bool, str]:
+        """Parse LLM result to extract query plans."""
         try:
-            json_match = re.search(r'\{[^}]+\}', result)
-            if json_match:
-                data = json.loads(json_match.group())
-                rewritten = data.get("rewritten", original_query)
-                province_codes = data.get("province_codes", [])
+            json_str = self._extract_json(result)
+            if json_str:
+                data = json.loads(json_str)
                 
-                valid_codes = [c.upper() for c in province_codes if c.upper() in PROVINCE_CODE_ALIASES]
+                queries_data = data.get("queries", [])
+                should_split = data.get("should_split", False)
+                reason = data.get("split_reason", "")
                 
-                if rewritten and len(rewritten) >= 2:
-                    return rewritten, valid_codes
-        except (json.JSONDecodeError, KeyError):
-            pass
+                query_plans = []
+                for qd in queries_data:
+                    q_text = qd.get("query", original_query)
+                    q_codes = qd.get("province_codes", [])
+                    valid_codes = [c.upper() for c in q_codes if c.upper() in PROVINCE_CODE_ALIASES]
+                    
+                    if q_text and len(q_text.strip()) >= 2:
+                        query_plans.append(QueryPlan(q_text.strip(), valid_codes))
+                
+                if query_plans:
+                    return query_plans, should_split, reason
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"JSON parse failed: {e}, result snippet: {result[:200]}")
         
         fallback_codes = self._extract_provinces_fallback(original_query)
+        return [QueryPlan(original_query, fallback_codes)], False, "parse_failed"
+    
+    def _extract_json(self, text: str) -> Optional[str]:
+        """Extract JSON object from text by finding balanced braces."""
+        start_idx = text.find('{')
+        if start_idx == -1:
+            return None
         
-        if result and len(result.strip()) >= 2:
-            return result.strip(), fallback_codes
+        brace_count = 0
+        end_idx = start_idx
         
-        return original_query, fallback_codes
+        for i in range(start_idx, len(text)):
+            if text[i] == '{':
+                brace_count += 1
+            elif text[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end_idx = i + 1
+                    break
+        
+        if brace_count == 0 and end_idx > start_idx:
+            return text[start_idx:end_idx]
+        
+        return None
     
     def _extract_provinces_fallback(self, text: str) -> List[str]:
         """Fallback: extract provinces using keyword matching."""

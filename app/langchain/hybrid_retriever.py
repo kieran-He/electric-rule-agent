@@ -8,6 +8,7 @@ Supports query expansion for improved recall.
 from __future__ import annotations
 
 import concurrent.futures
+import time
 from typing import Dict, List, Optional, Tuple
 import logging
 
@@ -15,7 +16,7 @@ from app.core.repository import PolicyChunk, ChromaPolicyRepository
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander
-from app.langchain.query_rewriter import QueryRewriter, RewriteResult
+from app.langchain.query_rewriter import QueryRewriter, RewriteResult, QueryPlan
 from dataprocess.bm25_builder import ProvinceBM25Indexer
 
 logger = logging.getLogger(__name__)
@@ -76,8 +77,18 @@ class BGEReranker:
         
         reranker = self._get_reranker()
         
+        if reranker_cache.is_loaded():
+            logger.info(f"Using preloaded reranker: {reranker_cache.get_model_name()}")
+        else:
+            logger.warning(f"Reranker not preloaded, loading on-demand: {self.model_name}")
+        
         pairs = [(query, chunk.text) for chunk in candidates]
-        scores = reranker.predict(pairs)
+        logger.info(f"Reranking {len(pairs)} pairs with query length {len(query)} chars")
+        
+        predict_start = time.time()
+        scores = reranker.predict(pairs, show_progress_bar=False, batch_size=32)
+        predict_time = time.time() - predict_start
+        logger.info(f"Reranker predict: {len(pairs)} pairs in {predict_time:.3f}s ({predict_time/len(pairs):.3f}s per pair)")
         
         ranked_indices = sorted(
             range(len(scores)),
@@ -228,7 +239,7 @@ class HybridRetriever:
         province_codes: List[str],
     ) -> Tuple[List[PolicyChunk], List[str]]:
         """
-        Hybrid retrieval pipeline with province detection.
+        Hybrid retrieval pipeline with batch embedding optimization.
         
         Args:
             query: User query
@@ -237,32 +248,50 @@ class HybridRetriever:
         Returns:
             (Re-ranked list of PolicyChunk, detected province codes)
         """
-        rewritten_queries = self._rewrite_query(query)
+        rewrite_result = self._rewrite_query(query)
+        self._last_rewrite_result = rewrite_result
         
-        detected_codes = province_codes
-        if self._last_rewrite_result and self._last_rewrite_result.province_codes:
-            detected_codes = self._last_rewrite_result.province_codes
-            logger.info(f"Detected provinces from query: {detected_codes}")
+        if not rewrite_result.queries:
+            return [], province_codes
         
-        if not detected_codes:
-            logger.info(f"No provinces detected, using default: {province_codes}")
-            detected_codes = province_codes
+        queries = [qp.query for qp in rewrite_result.queries]
+        
+        all_province_codes = set()
+        for qp in rewrite_result.queries:
+            all_province_codes.update(qp.province_codes)
+        
+        if not all_province_codes:
+            all_province_codes = set(province_codes)
         
         supported = self._get_supported_provinces()
-        valid_codes = [c for c in detected_codes if c in supported]
+        valid_codes = [c for c in all_province_codes if c in supported]
         if not valid_codes:
             valid_codes = province_codes
-            logger.warning(f"Detected provinces {detected_codes} not supported, using default: {province_codes}")
+            logger.warning(f"Detected provinces {list(all_province_codes)} not supported, using default: {province_codes}")
         
-        rerank_query = rewritten_queries[-1] if len(rewritten_queries) > 1 else query
+        rerank_query = queries[0] if queries else query
         
-        queries = self._expand_queries(rewritten_queries)
+        if self.use_query_expansion and self.query_expander:
+            queries = self._expand_queries(queries)
         
+        embed_start = time.time()
+        query_embeddings = self._batch_embed_queries(queries)
+        logger.info(f"Batch embedding completed in {time.time() - embed_start:.3f}s")
+        
+        retrieve_start = time.time()
         per_query_results: List[List[PolicyChunk]] = []
-        for q in queries:
-            query_candidates = self._retrieve_provinces_concurrent(q, valid_codes)
+        original_queries_len = len(rewrite_result.queries)
+        for i, q in enumerate(queries):
+            if i < original_queries_len:
+                qp = rewrite_result.queries[i]
+                query_province_codes = qp.province_codes or valid_codes
+            else:
+                query_province_codes = valid_codes
+            query_candidates = self._retrieve_with_embedding(q, query_province_codes, query_embeddings[q])
             per_query_results.append(query_candidates)
+        logger.info(f"Retrieval completed in {time.time() - retrieve_start:.3f}s, {len(per_query_results)} query results")
         
+        rrf_start = time.time()
         if self.use_rrf_fusion and len(per_query_results) > 1:
             all_candidates = self._rrf_fusion_stage2(
                 per_query_results,
@@ -276,12 +305,15 @@ class HybridRetriever:
             for results in per_query_results:
                 all_candidates.extend(results)
             all_candidates = self._merge_and_deduplicate(all_candidates, [])
+        logger.info(f"RRF fusion completed in {time.time() - rrf_start:.3f}s, {len(all_candidates)} candidates")
         
+        rerank_start = time.time()
         if self.reranker.is_available() and len(all_candidates) > self.final_top_k:
             final_chunks = self.reranker.rerank(rerank_query, all_candidates, top_k=self.final_top_k)
         else:
             actual_final_k = min(self.final_top_k, len(all_candidates))
             final_chunks = all_candidates[:actual_final_k]
+        logger.info(f"Rerank completed in {time.time() - rerank_start:.3f}s, {len(final_chunks)} final chunks")
         
         logger.debug(f"Rerank using query: '{rerank_query}' (all queries: {queries})")
         
@@ -342,37 +374,121 @@ class HybridRetriever:
         else:
             return self._merge_and_deduplicate(vector_chunks, bm25_chunks)
     
-    def _rewrite_query(self, query: str) -> List[str]:
+    def _batch_embed_queries(self, queries: List[str]) -> Dict[str, List[float]]:
+        """Batch compute query embeddings with caching."""
+        return self.vector_repo.embed_queries_batch(queries)
+    
+    def _retrieve_with_embedding(
+        self,
+        query: str,
+        province_codes: List[str],
+        embedding: List[float]
+    ) -> List[PolicyChunk]:
+        """Retrieve using pre-computed embedding across multiple provinces."""
+        
+        all_chunks: List[PolicyChunk] = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {
+                executor.submit(
+                    self._retrieve_province_with_embedding,
+                    query, code, embedding
+                ): code
+                for code in province_codes
+            }
+            
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    chunks = future.result()
+                    all_chunks.extend(chunks)
+                except Exception as e:
+                    province_code = futures[future]
+                    logger.warning(f"Failed to retrieve from {province_code}: {e}")
+        
+        return all_chunks
+    
+    def _retrieve_province_with_embedding(
+        self,
+        query: str,
+        province_code: str,
+        embedding: List[float]
+    ) -> List[PolicyChunk]:
+        """Retrieve single province using pre-computed embedding."""
+        
+        prov_start = time.time()
+        
+        vec_start = time.time()
+        vector_chunks = self.vector_repo.retrieve_with_embedding(
+            embedding=embedding,
+            top_k=self.vector_top_k,
+            kb_scope="province",
+            province_code=province_code,
+        )
+        vec_time = time.time() - vec_start
+        
+        bm25_start = time.time()
+        try:
+            bm25_indexer = self._get_bm25_indexer(province_code)
+            bm25_results = bm25_indexer.search(query, top_k=self.bm25_top_k)
+            bm25_chunks = []
+            for chunk_data, score in bm25_results:
+                chunk = PolicyChunk(
+                    text=chunk_data["text"],
+                    score=float(score),
+                    metadata=chunk_data["metadata"],
+                )
+                bm25_chunks.append(chunk)
+        except Exception as e:
+            logger.warning(f"BM25 failed for {province_code}: {e}")
+            bm25_chunks = []
+        bm25_time = time.time() - bm25_start
+        
+        rrf1_start = time.time()
+        if self.use_rrf_fusion:
+            result = self._rrf_fusion_stage1(
+                vector_chunks, bm25_chunks,
+                k=self.rrf_k,
+                top_k=self.rrf_stage1_top_k,
+            )
+        else:
+            result = self._merge_and_deduplicate(vector_chunks, bm25_chunks)
+        
+        total_time = time.time() - prov_start
+        logger.debug(f"Province {province_code}: vec={vec_time:.3f}s, bm25={bm25_time:.3f}s, total={total_time:.3f}s, chunks={len(result)}")
+        
+        return result
+    
+    def _rewrite_query(self, query: str) -> RewriteResult:
         """
-        Rewrite query if enabled and triggered.
+        Rewrite query if enabled.
         
         Args:
             query: Original query
             
         Returns:
-            List of queries (original + rewritten if triggered)
+            RewriteResult with queries list
         """
-        self._last_rewrite_result = None
-        
         if not self.use_query_rewrite or self.query_rewriter is None:
-            return [query]
+            return RewriteResult(
+                queries=[QueryPlan(query, [])],
+                should_split=False,
+                split_reason="disabled",
+                triggered=False,
+                trigger_reason="disabled"
+            )
         
         try:
             result = self.query_rewriter.rewrite(query)
-            self._last_rewrite_result = result
-            if result.triggered:
-                if self.query_rewrite_keep_original:
-                    logger.debug(f"Query rewrite: keeping original + rewritten")
-                    return [query, result.rewritten_query]
-                else:
-                    logger.debug(f"Query rewrite: using rewritten only")
-                    return [result.rewritten_query]
-            else:
-                logger.debug(f"Query rewrite not triggered: {result.trigger_reason}")
-                return [query]
+            return result
         except Exception as e:
             logger.warning(f"Query rewrite failed: {e}, using original query")
-            return [query]
+            return RewriteResult(
+                queries=[QueryPlan(query, [])],
+                should_split=False,
+                split_reason=f"error: {e}",
+                triggered=False,
+                trigger_reason="error"
+            )
     
     def _expand_queries(self, queries: List[str]) -> List[str]:
         """

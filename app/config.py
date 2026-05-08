@@ -54,7 +54,7 @@ class Settings:
     reranker_max_length: int = int(_env("RERANKER_MAX_LENGTH", "512"))
     bm25_k1: float = float(_env("BM25_K1", "1.5"))
     bm25_b: float = float(_env("BM25_B", "0.6"))
-    query_expansion: bool = _env("QUERY_EXPANSION", "true").lower() == "true"
+    query_expansion: bool = _env("QUERY_EXPANSION", "false").lower() == "true"
     query_expansion_method: str = _env("QUERY_EXPANSION_METHOD", "semantic")
     query_expansion_max: int = int(_env("QUERY_EXPANSION_MAX", "3"))
     query_rewrite_enabled: bool = _env("QUERY_REWRITE_ENABLED", "true").lower() == "true"
