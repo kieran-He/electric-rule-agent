@@ -78,6 +78,9 @@ class Settings:
     rrf_stage1_top_k: int = int(_env("RRF_STAGE1_TOP_K", "15"))
     rrf_stage2_top_k: int = int(_env("RRF_STAGE2_TOP_K", "20"))
     use_rrf_fusion: bool = _env("USE_RRF_FUSION", "true").lower() == "true"
+    context_compress_enabled: bool = _env("CONTEXT_COMPRESS_ENABLED", "true").lower() == "true"
+    context_max_chars: int = int(_env("CONTEXT_MAX_CHARS", "3000"))
+    context_similarity_threshold: float = float(_env("CONTEXT_SIMILARITY_THRESHOLD", "0.85"))
 
     @property
     def is_sqlite(self) -> bool:

@@ -3,9 +3,10 @@ Retriever Wrapper for ChromaPolicyRepository
 
 Wraps existing ChromaPolicyRepository as LangChain-compatible Retriever.
 """
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict
 
 from app.core.repository import ChromaPolicyRepository, PolicyChunk
+from app.core.context_compressor import ContextCompressor
 
 
 class ChromaRepositoryRetriever:
@@ -95,3 +96,45 @@ def format_chunks_for_context(chunks: List[PolicyChunk]) -> str:
         lines.append(line)
 
     return "\n".join(lines)
+
+
+def format_chunks_for_context_with_compression(
+    chunks: List[PolicyChunk],
+    compress: bool = True,
+    max_chars: int = 3000,
+) -> Tuple[str, Dict]:
+    """
+    格式化检索结果为上下文，支持压缩
+
+    Args:
+        chunks: 检索结果
+        compress: 是否启用压缩
+        max_chars: 最大上下文字符数
+
+    Returns:
+        (context_string, compression_stats)
+    """
+    if not chunks:
+        return "- 无相关内容", {"original": 0, "compressed": 0, "reduction": 0.0}
+
+    if compress:
+        compressor = ContextCompressor(max_chars=max_chars)
+        compressed = compressor.compress(chunks)
+        chunks = compressed.compressed_chunks
+        stats = {
+            "original": compressed.original_count,
+            "compressed": compressed.compressed_count,
+            "reduction": compressed.reduction_ratio,
+        }
+    else:
+        stats = {"original": len(chunks), "compressed": len(chunks), "reduction": 0.0}
+
+    lines = []
+    for i, chunk in enumerate(chunks, 1):
+        policy_level = chunk.metadata.get("policy_level", "formal")
+        level_mark = " [草案]" if policy_level == "draft" else ""
+
+        line = f"{i}. {chunk.text}{level_mark}"
+        lines.append(line)
+
+    return "\n".join(lines), stats
