@@ -75,7 +75,7 @@ def format_chunks_for_context(chunks: List[PolicyChunk]) -> str:
         Formatted context string
     """
     if not chunks:
-        return "- 无相关证据"
+        return "- 无相关内容"
 
     lines = []
     for i, chunk in enumerate(chunks, 1):

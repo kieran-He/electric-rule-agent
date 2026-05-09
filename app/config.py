@@ -66,7 +66,7 @@ class Settings:
     web_search_enabled: bool = _env("WEB_SEARCH_ENABLED", "true").lower() == "true"
     web_search_max_results: int = int(_env("WEB_SEARCH_MAX_RESULTS", "5"))
     web_search_on_insufficient_evidence: bool = _env("WEB_SEARCH_ON_INSUFFICIENT_EVIDENCE", "true").lower() == "true"
-    insufficient_evidence_keywords: str = _env("INSUFFICIENT_EVIDENCE_KEYWORDS", "未检索到充分依据,证据不足,未找到相关信息,无法确定,未找到充分证据,知识库中无相关,如需获取确定性答案,建议检索,未能找到,暂无相关,没有找到,文档中未提及,检索结果中没有,没有相关信息,无法提供确切")
+    insufficient_evidence_keywords: str = _env("INSUFFICIENT_EVIDENCE_KEYWORDS", "暂无相关信息,未找到相关内容,无法确定,知识库中无相关,没有找到,文档中未提及,检索结果中没有,没有相关信息,无法提供确切")
     web_search_depth: str = _env("WEB_SEARCH_DEPTH", "advanced")
     web_search_include_gov: bool = _env("WEB_SEARCH_INCLUDE_GOV", "true").lower() == "true"
     feishu_webhook_url: str = _env("FEISHU_WEBHOOK_URL", "")

@@ -218,10 +218,105 @@ class HybridQAOrchestrator:
                 detected.append(code)
         return detected if detected else default_codes
     
+    def _get_provinces_from_rewrite(
+        self,
+        rewrite_result: Optional[RewriteResult],
+        query: str,
+    ) -> List[str]:
+        """Extract all province codes from rewrite result."""
+        if rewrite_result and rewrite_result.queries:
+            all_codes = set()
+            for qp in rewrite_result.queries:
+                all_codes.update(qp.province_codes)
+            return list(all_codes)
+        
+        from dataprocess.province_mapping import PROVINCE_ALIASES
+        codes = []
+        for alias, code in PROVINCE_ALIASES.items():
+            if alias in query:
+                codes.append(code)
+        return codes
+    
+    def _filter_history_by_provinces(
+        self,
+        history: List[str],
+        current_provinces: List[str],
+    ) -> List[str]:
+        """
+        Filter history to only include relevant province context.
+        
+        Rules:
+        1. If current query has no province (provinces=[]), include all history
+        2. If current query has provinces, filter history to match:
+           - Keep Q/A pairs where province matches current
+           - Keep summary lines (marked with 【历史摘要】)
+           - Drop Q/A pairs about other provinces
+        """
+        if not history or not current_provinces:
+            return history or []
+        
+        from dataprocess.province_mapping import PROVINCE_ALIASES
+        
+        province_keywords = set()
+        for code in current_provinces:
+            for alias, c in PROVINCE_ALIASES.items():
+                if c == code:
+                    province_keywords.add(alias)
+        
+        filtered = []
+        skip_next = False
+        
+        for line in history:
+            if line.startswith("【历史摘要】"):
+                filtered.append(line)
+                continue
+            
+            if skip_next:
+                skip_next = False
+                continue
+            
+            if line.startswith("Q:"):
+                is_relevant = any(kw in line for kw in province_keywords)
+                if is_relevant:
+                    filtered.append(line)
+                else:
+                    skip_next = True
+            elif line.startswith("A:"):
+                filtered.append(line)
+        
+        return filtered
+    
+    def _extract_province_label(self, search_query: str) -> str:
+        """Extract province name from search query for labeling."""
+        from dataprocess.province_mapping import PROVINCE_CODE_ALIASES
+        from dataprocess.province_mapping import PROVINCE_ALIASES
+        
+        for alias, code in PROVINCE_ALIASES.items():
+            if alias in search_query:
+                return alias
+        
+        return "综合"
+    
+    def _combine_web_search_contexts(
+        self,
+        contexts: List[Tuple[str, str]],
+        original_query: str,
+    ) -> str:
+        """Combine multiple web search contexts with province labels."""
+        if len(contexts) == 1:
+            return contexts[0][1]
+        
+        combined_parts = []
+        for search_query, context in contexts:
+            province_label = self._extract_province_label(search_query)
+            combined_parts.append(f"### {province_label} 搜索结果\n{context}")
+        
+        return "\n\n".join(combined_parts)
+    
     def _contains_insufficient_evidence(self, answer: str) -> bool:
-        """Check if answer indicates insufficient evidence."""
+        """Check if answer indicates insufficient content."""
         keywords_str = getattr(self.settings, 'insufficient_evidence_keywords', 
-                               "未检索到充分依据,证据不足,未找到相关信息,无法确定,未找到充分证据,知识库中无相关")
+                               "暂无相关信息,未找到相关内容,无法确定,知识库中无相关,没有找到")
         keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
         return any(kw in answer for kw in keywords)
     
@@ -251,30 +346,33 @@ class HybridQAOrchestrator:
         if not chunks:
             return self._web_search_fallback(query, rewrite_result), 0, 0
         
+        detected_provinces = self._get_provinces_from_rewrite(rewrite_result, query)
+        filtered_history = self._filter_history_by_provinces(history, detected_provinces)
+        history_text = "\n".join(filtered_history[-6:]) if filtered_history else ""
+        
         provincial_context = format_chunks_for_context(chunks)
-        global_context = "- 无通用证据"
-        history_text = "\n".join(history[-6:]) if history else ""
+        global_context = "- 无通用参考"
         
         user_content = f"""问题: {query}
 
-省级证据({province_code}):
+参考内容({province_code}):
 {provincial_context}
 
-通用证据:
+通用参考:
 {global_context}
 
 历史对话:
 {history_text}
 
-请根据上述证据回答问题。"""
+请直接回答问题。"""
         
-        system_prompt = """你是电力政策问答助手。只能根据提供的证据回答，禁止编造。如果证据不足，明确说明"未检索到充分依据"。
+        system_prompt = """你是电力政策问答助手。只能根据提供的参考内容回答，禁止编造。如果参考内容不足以回答问题，明确说明"暂无相关信息"。
 
 回答格式要求：
-1. 直接回答用户问题，不要标注来源编号或引用出处
-2. 结构清晰，使用标题和列表组织内容
-3. 如需引用原文，使用引用格式（> 引用内容）
-4. 证据不足时，明确告知用户并建议补充检索
+1. 直接回答用户问题，简洁清晰
+2. 禁止提及任何来源、证据、文档名称、引用出处等信息
+3. 禁止使用"根据..."、"依据..."、"参考..."等表述
+4. 信息不足时，明确告知用户
 5. 涉及多省份时，分别说明各省份政策"""
         
         try:
@@ -303,8 +401,8 @@ class HybridQAOrchestrator:
         """
         Fallback to web search when no relevant documents found.
         
-        Uses Tavily API for real-time web search (if configured),
-        otherwise uses LLM to attempt answering without evidence.
+        When rewrite_result contains multiple queries (should_split=True),
+        search for each query separately and combine results.
         
         Args:
             query: User query
@@ -313,24 +411,35 @@ class HybridQAOrchestrator:
         Returns:
             Answer string with disclaimer about non-knowledge-base content
         """
-        search_query = query
-        if rewrite_result and rewrite_result.triggered:
-            search_query = rewrite_result.rewritten_query
-            logger.info(f"Using rewritten query for web search: {search_query}")
+        search_queries = []
+        if rewrite_result and rewrite_result.triggered and rewrite_result.queries:
+            for qp in rewrite_result.queries:
+                search_queries.append(qp.query)
+            logger.info(f"Web search for {len(search_queries)} split queries: {search_queries}")
+        else:
+            search_queries = [query]
         
-        logger.info(f"No chunks found, falling back to web search for query: {search_query}")
+        logger.info(f"No chunks found, falling back to web search for query: {query}")
         
         if self.web_search_client and self.web_search_client.is_available():
             try:
                 include_gov = getattr(self.settings, 'web_search_include_gov', True)
                 domains = ["gov.cn"] if include_gov else None
                 
-                results = self.web_search_client.search(
-                    query=search_query,
-                    include_domains=domains,
-                )
-                if results:
-                    context = self.web_search_client.format_results_for_context(results)
+                all_contexts: List[Tuple[str, str]] = []
+                
+                for search_query in search_queries:
+                    logger.info(f"Searching web for: {search_query}")
+                    results = self.web_search_client.search(
+                        query=search_query,
+                        include_domains=domains,
+                    )
+                    if results:
+                        context = self.web_search_client.format_results_for_context(results)
+                        all_contexts.append((search_query, context))
+                
+                if all_contexts:
+                    combined_context = self._combine_web_search_contexts(all_contexts, query)
                     
                     system_prompt = """你是电力政策问答助手，根据网络搜索结果回答用户问题。
 
@@ -338,12 +447,13 @@ class HybridQAOrchestrator:
 1. 基于搜索结果回答，不要编造信息
 2. 禁止提及来源、证据出处等引用信息
 3. 简洁清晰，直接回答问题核心
-4. 如搜索结果不足以回答，明确说明"""
+4. 如搜索结果不足以回答，明确说明
+5. 涉及多省份时，分别说明各省份政策"""
                     
                     user_content = f"""问题：{query}
 
 网络搜索结果：
-{context}
+{combined_context}
 
 请根据上述搜索结果回答问题。"""
                     

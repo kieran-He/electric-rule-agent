@@ -52,8 +52,9 @@ class LLMClient:
 
     def _build_system_prompt(self) -> str:
         return (
-            "你是电力政策问答助手。只能根据提供的证据回答，禁止编造。"
-            "如果证据不足，明确说明\"未检索到充分依据\"。"
+            "你是电力政策问答助手。只能根据提供的参考内容回答，禁止编造。"
+            "禁止提及任何来源、证据、文档名称等信息。"
+            "如果参考内容不足以回答，明确说明\"暂无相关信息\"。"
         )
 
     def _call_anthropic_sdk(self, system: str, user_content: str) -> str:
@@ -99,26 +100,27 @@ class LLMClient:
         
         context = "\n\n".join(
             [
-                self._build_context(provincial_chunks, f"省级证据({province_code or 'unknown'})"),
-                self._build_context(global_chunks, "通用证据"),
+                self._build_context(provincial_chunks, f"参考内容({province_code or 'unknown'})"),
+                self._build_context(global_chunks, "通用参考"),
                 "历史对话:\n" + "\n".join(history[-3:]),
             ]
         )
         
-        user_content = f"问题: {query}\n\n证据:\n{context}"
+        user_content = f"问题: {query}\n\n参考内容:\n{context}"
         return self._call_anthropic_sdk(self._build_system_prompt(), user_content)
 
     def generate_compare_answer(self, query: str, result_by_province: dict) -> str:
         self._require_ready()
         
-        lines = [f"问题: {query}", "跨省检索证据:"]
+        lines = [f"问题: {query}", "跨省参考内容:"]
         for province, chunks in result_by_province.items():
-            lines.append(self._build_context(chunks, f"{province}证据"))
+            lines.append(self._build_context(chunks, f"{province}参考"))
         
         user_content = "\n\n".join(lines)
         system = (
-            "你是电力政策问答助手。请基于给定的跨省证据输出结论与差异点。"
-            "没有证据时必须明确说明\"未检索到充分依据\"。"
+            "你是电力政策问答助手。请基于提供的参考内容输出结论与差异点。"
+            "禁止提及任何来源、证据、文档名称等信息。"
+            "无相关信息时明确说明\"暂无相关信息\"。"
         )
         return self._call_anthropic_sdk(system, user_content)
 

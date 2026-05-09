@@ -13,13 +13,13 @@ class AppError(Exception):
 
 
 class NotFoundEvidenceError(AppError):
-    def __init__(self, message: str = "没有检索到足够证据", detail: dict[str, Any] | None = None):
-        super().__init__("NO_EVIDENCE", message, 404, detail or {})
+    def __init__(self, message: str = "未找到相关内容", detail: dict[str, Any] | None = None):
+        super().__init__("NO_CONTENT", message, 404, detail or {})
 
 
 class DraftOnlyError(AppError):
     def __init__(self, detail: dict[str, Any] | None = None):
-        super().__init__("DRAFT_ONLY", "仅检索到征求意见稿，非正式执行依据", 200, detail or {})
+        super().__init__("DRAFT_ONLY", "仅找到征求意见稿，非正式执行文件", 200, detail or {})
 
 
 class DatabaseUnavailableError(AppError):

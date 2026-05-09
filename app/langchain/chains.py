@@ -50,7 +50,7 @@ def build_qa_chain(
         {
             "question": RunnablePassthrough(),
             "provincial_context": retriever | RunnableLambda(format_provincial_context),
-            "global_context": RunnableLambda(lambda _: "- 无通用证据"),
+            "global_context": RunnableLambda(lambda _: "- 无通用参考"),
             "province_code": RunnableLambda(lambda _: province_code),
             "history": RunnableLambda(empty_history),
         }
@@ -84,7 +84,7 @@ def build_compare_chain(
         province_chunks = input_data.get("province_chunks", {})
 
         if not province_chunks:
-            return "- 无跨省证据"
+            return "- 无跨省参考内容"
 
         lines = []
         for province, chunks in province_chunks.items():
