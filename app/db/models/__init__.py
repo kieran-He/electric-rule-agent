@@ -9,6 +9,7 @@ from app.db.models.processed_message import ProcessedMessage
 from app.db.models.rule_tag import RuleTag
 from app.db.models.structured_rule import StructuredRule
 from app.db.models.trace_record import TraceRecord
+from app.db.models.user_feedback import UserFeedback
 
 __all__ = [
     "Clause",
@@ -22,4 +23,5 @@ __all__ = [
     "RuleTag",
     "StructuredRule",
     "TraceRecord",
+    "UserFeedback",
 ]

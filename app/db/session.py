@@ -29,6 +29,7 @@ def init_db() -> None:
         rule_tag,
         structured_rule,
         trace_record,
+        user_feedback,
     )
 
     with engine.connect() as conn:
