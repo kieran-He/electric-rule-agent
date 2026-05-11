@@ -20,7 +20,7 @@ from app.core.repository import ChromaPolicyRepository, PolicyChunk
 from app.schemas.answer import CitationItem, QueryAnswer
 from app.schemas.query import QueryRequest
 from app.langchain.bm25_indexer import BM25Indexer
-from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker
+from app.langchain.hybrid_retriever import HybridRetriever, BGEReranker, RetrievalQuality
 from app.langchain.query_expander import QueryExpander
 from app.langchain.query_rewriter import QueryRewriter, RewriteResult
 from app.langchain.reranker_cache import preload_reranker
@@ -151,6 +151,8 @@ class HybridQAOrchestrator:
                     rrf_k=self.settings.rrf_k,
                     rrf_stage1_top_k=self.settings.rrf_stage1_top_k,
                     rrf_stage2_top_k=self.settings.rrf_stage2_top_k,
+                    low_relevance_threshold=self.settings.reranker_low_relevance_threshold,
+                    min_chunks_threshold=self.settings.reranker_min_chunks_threshold,
                 )
                 
                 logger.info(f"Hybrid retriever initialized: {self.hybrid_retriever.get_stats()}")
@@ -194,7 +196,7 @@ class HybridQAOrchestrator:
         query: str,
         province_codes: List[str],
         top_k: int,
-    ) -> Tuple[List[PolicyChunk], List[str]]:
+    ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval: Vector + BM25 + BGE Rerank with province detection.
         
@@ -204,13 +206,22 @@ class HybridQAOrchestrator:
             top_k: Number of results
             
         Returns:
-            Tuple of (List of PolicyChunk, detected province codes)
+            Tuple of (List of PolicyChunk, detected province codes, RetrievalQuality)
         """
         if self.hybrid_retriever is not None:
             return self.hybrid_retriever.retrieve(query, province_codes)
         else:
             fallback_codes = self._detect_provinces_fallback(query, province_codes)
-            return self._retrieve_vector(query, province_codes, top_k), fallback_codes
+            chunks = self._retrieve_vector(query, province_codes, top_k)
+            quality = RetrievalQuality(
+                has_results=len(chunks) > 0,
+                avg_score=0.0,
+                top_score=0.0,
+                chunk_count=len(chunks),
+                is_low_quality=len(chunks) < 3,
+                quality_reason="fallback"
+            )
+            return chunks, fallback_codes, quality
     
     def _detect_provinces_fallback(self, query: str, default_codes: List[str]) -> List[str]:
         """Fallback province detection when hybrid retriever not available."""
@@ -330,6 +341,7 @@ class HybridQAOrchestrator:
         province_code: str,
         history: list[str] = None,
         rewrite_result: Optional[RewriteResult] = None,
+        retrieval_quality: Optional[RetrievalQuality] = None,
     ) -> tuple[str, int, int, str]:
         """
         Generate answer using LangChain LLM with token counts.
@@ -340,11 +352,25 @@ class HybridQAOrchestrator:
             province_code: Province code for context
             history: Conversation history list
             rewrite_result: Optional rewrite result for web search optimization
+            retrieval_quality: Optional retrieval quality info for fallback decision
             
         Returns:
             Tuple of (answer string, input_tokens, output_tokens, intent)
         """
         from app.langchain.retriever_wrapper import format_chunks_for_context_with_compression
+        
+        web_search_on_low_relevance = getattr(self.settings, 'web_search_on_low_relevance', True)
+        
+        if retrieval_quality and retrieval_quality.is_low_quality:
+            if web_search_on_low_relevance:
+                logger.info(f"Low relevance detected (avg_score={retrieval_quality.avg_score:.3f}, "
+                           f"chunks={retrieval_quality.chunk_count}, reason={retrieval_quality.quality_reason}), "
+                           f"triggering web search")
+                web_answer = self._web_search_fallback(query, rewrite_result)
+                if chunks:
+                    provincial_context = self._build_context_from_chunks(chunks)
+                    return f"{provincial_context}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}", 0, 0, "hybrid"
+                return web_answer, 0, 0, "web_search"
         
         if not chunks:
             return self._web_search_fallback(query, rewrite_result), 0, 0, "query"
@@ -516,6 +542,20 @@ class HybridQAOrchestrator:
             citations.append(citation)
         return citations
     
+    def _build_context_from_chunks(self, chunks: List[PolicyChunk]) -> str:
+        """Build context string from chunks for hybrid response."""
+        lines = ["**知识库检索结果（相关性较低）：**"]
+        for i, chunk in enumerate(chunks[:3], 1):
+            source = chunk.metadata.get("source_name", "未知文档")
+            title_path = chunk.metadata.get("title_path", "")
+            score = getattr(chunk, 'score', None)
+            score_str = f" (相关性: {score:.3f})" if score else ""
+            lines.append(f"\n{i}. {source}{score_str}")
+            if title_path:
+                lines.append(f"   位置: {title_path}")
+            lines.append(f"   内容摘要: {chunk.text[:150]}...")
+        return "\n".join(lines)
+    
     def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None, db: Session = None) -> QueryAnswer:
         """
         Execute QA flow with hybrid retrieval.
@@ -532,7 +572,7 @@ class HybridQAOrchestrator:
         start_time = time.time()
         
         retrieval_start = time.time()
-        chunks, detected_codes = self._retrieve(req.query, req.province_codes, req.top_k)
+        chunks, detected_codes, retrieval_quality = self._retrieve(req.query, req.province_codes, req.top_k)
         retrieval_latency = int((time.time() - retrieval_start) * 1000)
         metrics_store.record_latency(retrieval_latency, "retrieval")
         
@@ -544,7 +584,8 @@ class HybridQAOrchestrator:
         
         llm_start = time.time()
         answer, input_tokens, output_tokens, detected_intent = self._generate_answer_with_tokens(
-            req.query, chunks, province_code, history or [], rewrite_result
+            req.query, chunks, province_code, history or [], rewrite_result,
+            retrieval_quality=retrieval_quality
         )
         llm_latency = int((time.time() - llm_start) * 1000)
         metrics_store.record_latency(llm_latency, "llm")

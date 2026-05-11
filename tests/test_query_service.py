@@ -67,6 +67,7 @@ def build_service():
         query_rewrite_enabled=False,
         query_rewrite_min_length=10,
         query_rewrite_keep_original=True,
+        coreference_resolution_enabled=True,
     )
     
     session_factory = lambda: FakeSession()

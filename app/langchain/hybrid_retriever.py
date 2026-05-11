@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import time
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 import logging
 
@@ -20,6 +21,16 @@ from app.langchain.query_rewriter import QueryRewriter, RewriteResult, QueryPlan
 from dataprocess.bm25_builder import ProvinceBM25Indexer
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RetrievalQuality:
+    has_results: bool
+    avg_score: float
+    top_score: float
+    chunk_count: int
+    is_low_quality: bool
+    quality_reason: str
 
 
 class BGEReranker:
@@ -160,6 +171,8 @@ class HybridRetriever:
         rrf_k: int = 60,
         rrf_stage1_top_k: int = 15,
         rrf_stage2_top_k: int = 20,
+        low_relevance_threshold: float = 0.5,
+        min_chunks_threshold: int = 3,
     ):
         from app.langchain.llm import MiniMaxLLMWrapper
         self.vector_repo = vector_repo
@@ -184,6 +197,8 @@ class HybridRetriever:
         self.rrf_k = rrf_k
         self.rrf_stage1_top_k = rrf_stage1_top_k
         self.rrf_stage2_top_k = rrf_stage2_top_k
+        self.low_relevance_threshold = low_relevance_threshold
+        self.min_chunks_threshold = min_chunks_threshold
         self._bm25_indexers: Dict[str, ProvinceBM25Indexer] = {}
         self._supported_provinces: Optional[List[str]] = None
         self._last_rewrite_result: Optional[RewriteResult] = None
@@ -237,7 +252,7 @@ class HybridRetriever:
         self,
         query: str,
         province_codes: List[str],
-    ) -> Tuple[List[PolicyChunk], List[str]]:
+    ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval pipeline with batch embedding optimization.
         
@@ -246,13 +261,20 @@ class HybridRetriever:
             province_codes: Default province codes (used if no provinces detected)
             
         Returns:
-            (Re-ranked list of PolicyChunk, detected province codes)
+            (Re-ranked list of PolicyChunk, detected province codes, RetrievalQuality)
         """
         rewrite_result = self._rewrite_query(query)
         self._last_rewrite_result = rewrite_result
         
         if not rewrite_result.queries:
-            return [], province_codes
+            return [], province_codes, RetrievalQuality(
+                has_results=False,
+                avg_score=0.0,
+                top_score=0.0,
+                chunk_count=0,
+                is_low_quality=True,
+                quality_reason="no_queries"
+            )
         
         queries = [qp.query for qp in rewrite_result.queries]
         
@@ -320,9 +342,17 @@ class HybridRetriever:
         if self.rejection_threshold is not None and final_chunks:
             if final_chunks[0].score < self.rejection_threshold:
                 logger.info(f"Query rejected: top score {final_chunks[0].score:.3f} < threshold {self.rejection_threshold}")
-                return [], valid_codes
+                return [], valid_codes, RetrievalQuality(
+                    has_results=False,
+                    avg_score=0.0,
+                    top_score=0.0,
+                    chunk_count=0,
+                    is_low_quality=True,
+                    quality_reason="rejected"
+                )
         
-        return final_chunks, valid_codes
+        quality = self._assess_retrieval_quality(final_chunks)
+        return final_chunks, valid_codes, quality
     
     def _retrieve_provinces_concurrent(self, query: str, province_codes: List[str]) -> List[PolicyChunk]:
         all_chunks: List[PolicyChunk] = []
@@ -656,6 +686,8 @@ class HybridRetriever:
             "rrf_k": self.rrf_k,
             "rrf_stage1_top_k": self.rrf_stage1_top_k,
             "rrf_stage2_top_k": self.rrf_stage2_top_k,
+            "low_relevance_threshold": self.low_relevance_threshold,
+            "min_chunks_threshold": self.min_chunks_threshold,
         }
         
         if self.query_expander:
@@ -669,3 +701,40 @@ class HybridRetriever:
     def get_last_rewrite_result(self) -> Optional[RewriteResult]:
         """Get the last rewrite result from the most recent retrieve call."""
         return self._last_rewrite_result
+    
+    def _assess_retrieval_quality(self, chunks: List[PolicyChunk]) -> RetrievalQuality:
+        """Assess retrieval result quality based on reranker scores."""
+        if not chunks:
+            return RetrievalQuality(
+                has_results=False,
+                avg_score=0.0,
+                top_score=0.0,
+                chunk_count=0,
+                is_low_quality=True,
+                quality_reason="no_results"
+            )
+        
+        scores = [c.score for c in chunks if hasattr(c, 'score') and c.score is not None]
+        avg_score = sum(scores) / len(scores) if scores else 0.0
+        top_score = scores[0] if scores else 0.0
+        
+        is_low_quality = (
+            avg_score < self.low_relevance_threshold or
+            len(chunks) < self.min_chunks_threshold
+        )
+        
+        if avg_score < self.low_relevance_threshold:
+            quality_reason = "low_score"
+        elif len(chunks) < self.min_chunks_threshold:
+            quality_reason = "few_chunks"
+        else:
+            quality_reason = "acceptable"
+        
+        return RetrievalQuality(
+            has_results=True,
+            avg_score=avg_score,
+            top_score=top_score,
+            chunk_count=len(chunks),
+            is_low_quality=is_low_quality,
+            quality_reason=quality_reason
+        )

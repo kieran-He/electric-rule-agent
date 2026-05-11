@@ -81,6 +81,11 @@ class Settings:
     context_compress_enabled: bool = _env("CONTEXT_COMPRESS_ENABLED", "true").lower() == "true"
     context_max_chars: int = int(_env("CONTEXT_MAX_CHARS", "3000"))
     context_similarity_threshold: float = float(_env("CONTEXT_SIMILARITY_THRESHOLD", "0.85"))
+    reranker_low_relevance_threshold: float = float(_env("RERANKER_LOW_RELEVANCE_THRESHOLD", "0.5"))
+    reranker_min_chunks_threshold: int = int(_env("RERANKER_MIN_CHUNKS_THRESHOLD", "3"))
+    web_search_on_low_relevance: bool = _env("WEB_SEARCH_ON_LOW_RELEVANCE", "true").lower() == "true"
+    coreference_resolution_enabled: bool = _env("COREFERENCE_RESOLUTION_ENABLED", "true").lower() == "true"
+    coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
 
     @property
     def is_sqlite(self) -> bool:

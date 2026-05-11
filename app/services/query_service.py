@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.schemas.answer import QueryAnswer
 from app.schemas.query import QueryRequest
 from app.services.conversation_service import ConversationService
+from app.services.coreference_resolver import CoreferenceResolver
 from app.services.orchestrator_singleton import orchestrator_singleton
 from app.services.trace_service import TraceService
 
@@ -19,9 +20,15 @@ class QueryService:
         self.settings = settings
         self.session_factory = session_factory
         self.conversation_service = ConversationService(session_factory)
+        self.coreference_resolver = CoreferenceResolver(enabled=settings.coreference_resolution_enabled)
 
     def answer(self, req: QueryRequest) -> QueryAnswer:
         history = self.conversation_service.get_history(req.session_id)
+        
+        resolved_query = self.coreference_resolver.resolve(req.query, history)
+        if resolved_query != req.query:
+            logger.info(f"Coreference resolved: '{req.query}' -> '{resolved_query}'")
+            req.query = resolved_query
         
         with self.session_factory() as db:
             trace_service = TraceService(self.session_factory)
