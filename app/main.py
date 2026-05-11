@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.routes_admin import router as admin_router
+from app.api.routes_agent import router as agent_router
 from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_feedback import router as feedback_router
 from app.api.routes_ingest import router as ingest_router
@@ -18,6 +19,7 @@ from app.core.logger import configure_logging
 from app.core.embedding_cache import preload_embedding
 from app.langchain.reranker_cache import preload_reranker
 from app.services.orchestrator_singleton import preload_orchestrator
+from app.agent.agent_singleton import preload_agent
 from app.db.session import init_db
 from app.schemas.error import ErrorResponse
 from app.services.session_cleanup import cleanup_task
@@ -42,6 +44,9 @@ async def lifespan(app: FastAPI):
     preload_orchestrator(settings)
     logger.info("Orchestrator preloaded")
     
+    preload_agent(settings)
+    logger.info("Agent preloaded")
+    
     cleanup_task.start()
     yield
     cleanup_task.stop()
@@ -49,6 +54,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, version='3.0.0', lifespan=lifespan)
 app.include_router(query_router)
+app.include_router(agent_router)
 app.include_router(ingest_router)
 app.include_router(admin_router)
 app.include_router(metrics_router)

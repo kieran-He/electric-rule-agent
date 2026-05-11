@@ -252,6 +252,7 @@ class HybridRetriever:
         self,
         query: str,
         province_codes: List[str],
+        rewrite_result: Optional[RewriteResult] = None,
     ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval pipeline with batch embedding optimization.
@@ -259,12 +260,18 @@ class HybridRetriever:
         Args:
             query: User query
             province_codes: Default province codes (used if no provinces detected)
+            rewrite_result: Pre-computed rewrite result (avoid duplicate rewrite)
             
         Returns:
             (Re-ranked list of PolicyChunk, detected province codes, RetrievalQuality)
         """
-        rewrite_result = self._rewrite_query(query)
+        if rewrite_result is None:
+            rewrite_result = self._rewrite_query(query)
+        
         self._last_rewrite_result = rewrite_result
+        
+        if rewrite_result.triggered:
+            logger.info(f"[Retriever] Using pre-computed rewrite result: {len(rewrite_result.queries)} queries")
         
         if not rewrite_result.queries:
             return [], province_codes, RetrievalQuality(

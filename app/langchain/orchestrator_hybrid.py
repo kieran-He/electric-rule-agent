@@ -83,8 +83,7 @@ class HybridQAOrchestrator:
         self.bm25_top_k = bm25_top_k
         self.final_top_k = final_top_k
         
-        from app.core.web_search import create_web_search_client
-        self.web_search_client = create_web_search_client(self.settings)
+        
         
         self.prompt_selector = PromptSelector()
         
@@ -196,6 +195,7 @@ class HybridQAOrchestrator:
         query: str,
         province_codes: List[str],
         top_k: int,
+        rewrite_result: Any = None,
     ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval: Vector + BM25 + BGE Rerank with province detection.
@@ -204,12 +204,13 @@ class HybridQAOrchestrator:
             query: User query
             province_codes: Province codes to search (default/fallback)
             top_k: Number of results
+            rewrite_result: Pre-computed rewrite result (avoid duplicate rewrite)
             
         Returns:
             Tuple of (List of PolicyChunk, detected province codes, RetrievalQuality)
         """
         if self.hybrid_retriever is not None:
-            return self.hybrid_retriever.retrieve(query, province_codes)
+            return self.hybrid_retriever.retrieve(query, province_codes, rewrite_result=rewrite_result)
         else:
             fallback_codes = self._detect_provinces_fallback(query, province_codes)
             chunks = self._retrieve_vector(query, province_codes, top_k)
@@ -300,39 +301,7 @@ class HybridQAOrchestrator:
         
         return filtered
     
-    def _extract_province_label(self, search_query: str) -> str:
-        """Extract province name from search query for labeling."""
-        from dataprocess.province_mapping import PROVINCE_CODE_ALIASES
-        from dataprocess.province_mapping import PROVINCE_ALIASES
-        
-        for alias, code in PROVINCE_ALIASES.items():
-            if alias in search_query:
-                return alias
-        
-        return "综合"
     
-    def _combine_web_search_contexts(
-        self,
-        contexts: List[Tuple[str, str]],
-        original_query: str,
-    ) -> str:
-        """Combine multiple web search contexts with province labels."""
-        if len(contexts) == 1:
-            return contexts[0][1]
-        
-        combined_parts = []
-        for search_query, context in contexts:
-            province_label = self._extract_province_label(search_query)
-            combined_parts.append(f"### {province_label} 搜索结果\n{context}")
-        
-        return "\n\n".join(combined_parts)
-    
-    def _contains_insufficient_evidence(self, answer: str) -> bool:
-        """Check if answer indicates insufficient content."""
-        keywords_str = getattr(self.settings, 'insufficient_evidence_keywords', 
-                               "暂无相关信息,未找到相关内容,无法确定,知识库中无相关,没有找到")
-        keywords = [kw.strip() for kw in keywords_str.split(',') if kw.strip()]
-        return any(kw in answer for kw in keywords)
     
     def _generate_answer_with_tokens(
         self,
@@ -359,21 +328,9 @@ class HybridQAOrchestrator:
         """
         from app.langchain.retriever_wrapper import format_chunks_for_context_with_compression
         
-        web_search_on_low_relevance = getattr(self.settings, 'web_search_on_low_relevance', True)
-        
-        if retrieval_quality and retrieval_quality.is_low_quality:
-            if web_search_on_low_relevance:
-                logger.info(f"Low relevance detected (avg_score={retrieval_quality.avg_score:.3f}, "
-                           f"chunks={retrieval_quality.chunk_count}, reason={retrieval_quality.quality_reason}), "
-                           f"triggering web search")
-                web_answer = self._web_search_fallback(query, rewrite_result)
-                if chunks:
-                    provincial_context = self._build_context_from_chunks(chunks)
-                    return f"{provincial_context}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}", 0, 0, "hybrid"
-                return web_answer, 0, 0, "web_search"
-        
         if not chunks:
-            return self._web_search_fallback(query, rewrite_result), 0, 0, "query"
+            logger.info(f"No chunks found for query: {query}")
+            return "知识库中未找到与您问题相关的文档。请尝试更换关键词或确认文档库是否完整。", 0, 0, "no_result"
         
         detected_provinces = self._get_provinces_from_rewrite(rewrite_result, query)
         filtered_history = self._filter_history_by_provinces(history, detected_provinces)
@@ -411,100 +368,12 @@ class HybridQAOrchestrator:
             if not answer:
                 return self._build_mock_answer(query, chunks), input_tokens, output_tokens, detected_intent
             
-            if self._contains_insufficient_evidence(answer):
-                web_search_enabled = getattr(self.settings, 'web_search_on_insufficient_evidence', True)
-                if web_search_enabled:
-                    logger.info(f"Evidence insufficient detected, triggering web search for: {query}")
-                    web_answer = self._web_search_fallback(query, rewrite_result)
-                    combined_answer = f"{answer}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}"
-                    return combined_answer, input_tokens, output_tokens, detected_intent
-            
             return answer, input_tokens, output_tokens, detected_intent
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
             return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0, detected_intent
     
-    def _web_search_fallback(
-        self,
-        query: str,
-        rewrite_result: Optional[RewriteResult] = None,
-    ) -> str:
-        """
-        Fallback to web search when no relevant documents found.
-        
-        When rewrite_result contains multiple queries (should_split=True),
-        search for each query separately and combine results.
-        
-        Args:
-            query: User query
-            rewrite_result: Optional rewrite result for optimized search query
-            
-        Returns:
-            Answer string with disclaimer about non-knowledge-base content
-        """
-        search_queries = []
-        if rewrite_result and rewrite_result.triggered and rewrite_result.queries:
-            for qp in rewrite_result.queries:
-                search_queries.append(qp.query)
-            logger.info(f"Web search for {len(search_queries)} split queries: {search_queries}")
-        else:
-            search_queries = [query]
-        
-        logger.info(f"No chunks found, falling back to web search for query: {query}")
-        
-        if self.web_search_client and self.web_search_client.is_available():
-            try:
-                include_gov = getattr(self.settings, 'web_search_include_gov', True)
-                domains = ["gov.cn"] if include_gov else None
-                
-                all_contexts: List[Tuple[str, str]] = []
-                
-                for search_query in search_queries:
-                    logger.info(f"Searching web for: {search_query}")
-                    results = self.web_search_client.search(
-                        query=search_query,
-                        include_domains=domains,
-                    )
-                    if results:
-                        context = self.web_search_client.format_results_for_context(results)
-                        all_contexts.append((search_query, context))
-                
-                if all_contexts:
-                    combined_context = self._combine_web_search_contexts(all_contexts, query)
-                    
-                    system_prompt = """你是电力政策问答助手，根据网络搜索结果回答用户问题。
-
-回答要求：
-1. 基于搜索结果回答，不要编造信息
-2. 禁止提及来源、证据出处等引用信息
-3. 简洁清晰，直接回答问题核心
-4. 如搜索结果不足以回答，明确说明
-5. 涉及多省份时，分别说明各省份政策"""
-                    
-                    user_content = f"""问题：{query}
-
-网络搜索结果：
-{combined_context}
-
-请根据上述搜索结果回答问题。"""
-                    
-                    answer, _, _ = self.llm_wrapper.invoke(user_content, system=system_prompt)
-                    if answer:
-                        return f"⚠️ 此回答来自网络搜索，非知识库内容，仅供参考。\n\n{answer}"
-            except Exception as e:
-                logger.error(f"Web search with Tavily failed: {e}")
-        
-        system_prompt = "你是搜索助手，帮助用户从网络获取信息。请尝试回答问题，如无法回答请明确说明。"
-        user_content = f"请回答以下问题：{query}\n\n注意：如果无法确定答案，请明确说明。"
-        
-        try:
-            answer, _, _ = self.llm_wrapper.invoke(user_content, system=system_prompt)
-            if answer:
-                return f"⚠️ 知识库无相关文档，此回答为LLM尝试回答，仅供参考。\n\n{answer}"
-            return "未检索到相关文档，也无法通过网络搜索获取答案。请尝试更换关键词或联系管理员确认文档库是否完整。"
-        except Exception as e:
-            logger.error(f"LLM fallback failed: {e}")
-            return "未检索到相关文档，网络搜索服务暂时不可用。请尝试更换关键词或联系管理员确认文档库是否完整。"
+    
     
     def _build_mock_answer(self, query: str, chunks: List[PolicyChunk]) -> str:
         """Build mock answer when LLM unavailable."""
@@ -556,7 +425,7 @@ class HybridQAOrchestrator:
             lines.append(f"   内容摘要: {chunk.text[:150]}...")
         return "\n".join(lines)
     
-    def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None, db: Session = None) -> QueryAnswer:
+    def run(self, req: QueryRequest, history: list[str] = None, trace_service: "TraceService" = None, db: Session = None, rewrite_result: Any = None) -> QueryAnswer:
         """
         Execute QA flow with hybrid retrieval.
         
@@ -564,6 +433,8 @@ class HybridQAOrchestrator:
             req: QueryRequest
             history: Conversation history list
             trace_service: TraceService for recording
+            db: Database session
+            rewrite_result: Pre-computed rewrite result from Agent layer
             
         Returns:
             QueryAnswer with detected provinces info
@@ -572,19 +443,21 @@ class HybridQAOrchestrator:
         start_time = time.time()
         
         retrieval_start = time.time()
-        chunks, detected_codes, retrieval_quality = self._retrieve(req.query, req.province_codes, req.top_k)
+        chunks, detected_codes, retrieval_quality = self._retrieve(
+            req.query, req.province_codes, req.top_k, rewrite_result=rewrite_result
+        )
         retrieval_latency = int((time.time() - retrieval_start) * 1000)
         metrics_store.record_latency(retrieval_latency, "retrieval")
         
-        rewrite_result = None
+        last_rewrite_result = None
         if self.hybrid_retriever:
-            rewrite_result = self.hybrid_retriever.get_last_rewrite_result()
+            last_rewrite_result = self.hybrid_retriever.get_last_rewrite_result()
         
         province_code = detected_codes[0] if detected_codes else "SN"
         
         llm_start = time.time()
         answer, input_tokens, output_tokens, detected_intent = self._generate_answer_with_tokens(
-            req.query, chunks, province_code, history or [], rewrite_result,
+            req.query, chunks, province_code, history or [], last_rewrite_result,
             retrieval_quality=retrieval_quality
         )
         llm_latency = int((time.time() - llm_start) * 1000)

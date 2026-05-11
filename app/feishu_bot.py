@@ -8,7 +8,7 @@ import lark_oapi as lark
 from app.config import settings
 from app.core.logger import configure_logging
 from app.db.session import SessionLocal, init_db
-from app.services.feishu_bot_service import FeishuBotService
+from app.services.feishu_agent_service import FeishuAgentService
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class FeishuBot:
         self.app_id = settings.feishu_app_id
         self.app_secret = settings.feishu_app_secret
         self.client: lark.Client | None = None
-        self.service: FeishuBotService | None = None
+        self.service: FeishuAgentService | None = None
         self.ws_client: lark.ws.Client | None = None
         self.executor = ThreadPoolExecutor(
             max_workers=settings.feishu_max_workers,
@@ -41,7 +41,7 @@ class FeishuBot:
             .app_secret(self.app_secret) \
             .log_level(lark.LogLevel.INFO) \
             .build()
-        self.service = FeishuBotService(
+        self.service = FeishuAgentService(
             settings=settings,
             session_factory=SessionLocal,
             client=self.client,
@@ -51,7 +51,7 @@ class FeishuBot:
     def _preload_models(self) -> None:
         from app.core.embedding_cache import embedding_cache
         from app.langchain.reranker_cache import reranker_cache
-        from app.services.orchestrator_singleton import orchestrator_singleton
+        from app.agent.agent_singleton import preload_agent
         
         logger.info("Preloading embedding model...")
         embedding_cache.preload(settings.embedding_model)
@@ -59,8 +59,8 @@ class FeishuBot:
         logger.info("Preloading reranker model...")
         reranker_cache.preload(settings.reranker_model, settings.reranker_max_length)
         
-        logger.info("Preloading HybridQAOrchestrator...")
-        orchestrator_singleton.preload(settings)
+        logger.info("Preloading PowerPolicyAgent...")
+        preload_agent(settings)
         
         logger.info("All models preloaded successfully")
 
