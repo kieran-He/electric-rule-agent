@@ -252,6 +252,7 @@ class HybridRetriever:
         self,
         query: str,
         province_codes: List[str],
+        history: List[str] = None,
     ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval pipeline with batch embedding optimization.
@@ -259,11 +260,12 @@ class HybridRetriever:
         Args:
             query: User query
             province_codes: Default province codes (used if no provinces detected)
+            history: Conversation history for coreference resolution
             
         Returns:
             (Re-ranked list of PolicyChunk, detected province codes, RetrievalQuality)
         """
-        rewrite_result = self._rewrite_query(query)
+        rewrite_result = self._rewrite_query(query, history)
         self._last_rewrite_result = rewrite_result
         
         if not rewrite_result.queries:
@@ -488,12 +490,13 @@ class HybridRetriever:
         
         return result
     
-    def _rewrite_query(self, query: str) -> RewriteResult:
+    def _rewrite_query(self, query: str, history: List[str] = None) -> RewriteResult:
         """
-        Rewrite query if enabled.
+        Rewrite query with coreference resolution if enabled.
         
         Args:
             query: Original query
+            history: Conversation history for coreference resolution
             
         Returns:
             RewriteResult with queries list
@@ -508,7 +511,7 @@ class HybridRetriever:
             )
         
         try:
-            result = self.query_rewriter.rewrite(query)
+            result = self.query_rewriter.rewrite(query, history)
             return result
         except Exception as e:
             logger.warning(f"Query rewrite failed: {e}, using original query")

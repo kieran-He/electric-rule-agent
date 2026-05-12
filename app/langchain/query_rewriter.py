@@ -1,7 +1,8 @@
 """
-LLM-powered Query Rewriter for Enhanced Retrieval
+LLM-powered Query Rewriter with Coreference Resolution
 
 Rewrites ambiguous/colloquial queries into more precise forms for better retrieval.
+Resolves pronouns and references using conversation history.
 Uses intelligent triggering to avoid unnecessary LLM calls.
 Also detects province codes from user query for multi-province support.
 """
@@ -48,10 +49,13 @@ class RewriteResult:
 
 class QueryRewriter:
     """
-    LLM-powered query rewriter for improved retrieval.
+    LLM-powered query rewriter with coreference resolution.
     
-    Intelligent triggering: only rewrites ambiguous/colloquial queries
-    Parallel retrieval: original and rewritten queries used together
+    Features:
+    - Resolves pronouns/references from conversation history
+    - Rewrites ambiguous/colloquial queries
+    - Detects and splits multi-province queries
+    - Compresses conversation history for context
     """
     
     DOMAIN_KEYWORDS = [
@@ -59,20 +63,22 @@ class QueryRewriter:
         "辅助", "储能", "调频", "市场", "规则", "政策",
         "电价", "负荷", "发电", "用电", "电网"
     ]
-    COLLOQUIAL_PATTERNS = [
-        "怎么", "如何", "那个", "这个", "什么", "哪些", 
-        "有没有", "能不能", "可以吗", "为什么", "怎样"
-    ]
     
     SYSTEM_PROMPT = """你是电力政策检索专家。分析用户查询并返回JSON结果。
 
 任务：
-1. 改写查询：补充领域关键词，去除口语化表达
-2. 识别省份：提取用户提到的省份（中文或代码）
-3. 拆分查询：如果查询涉及多个省份或多个市场类型，拆分为独立的子查询
+1. **指代消解**：根据对话历史，将代词（它、那个、这个）替换为具体政策名称或文档名称
+2. **查询改写**：补充领域关键词，去除口语化表达
+3. **省份识别**：提取用户提到的省份（中文或代码）
+4. **查询拆分**：如果查询涉及多个省份或多个市场类型，拆分为独立的子查询
+
+指代消解示例：
+- "它怎么规定的" → "陕西电力市场结算细则怎么规定的"
+- "那个政策适用范围" → "陕西省电力中长期市场实施细则适用范围"
+- "刚才说的文件" → "陕西电力现货市场交易实施细则"
 
 省份映射（中文→代码）：
-山西=SX, 陕西=SN, 甘肃=GS, 山东=SD, 安徽=AH
+陕西=SN, 甘肃=GS, 山西=SX, 山东=SD, 安徽=AH
 北京=BJ, 江苏=JS, 浙江=ZJ, 广东=GD, 四川=SC
 内蒙古=NM, 辽宁=LN, 吉林=JL, 黑龙江=HL
 福建=FJ, 江西=JX, 河南=HA, 湖北=HB, 湖南=HN
@@ -87,33 +93,13 @@ class QueryRewriter:
     {"query": "改写后的查询2", "province_codes": ["HI"]}
   ],
   "should_split": true,
-  "split_reason": "拆分原因（如：多省份查询需分别检索）"
+  "split_reason": "拆分原因"
 }
 
 拆分规则：
 1. 多省份查询：拆分为每个省份的独立查询
 2. 单省份查询：返回单个查询对象
-3. 无省份查询：province_codes为空数组 []
-
-示例：
-输入："山东海南中长期电力市场交易对发电量的要求"
-输出：{
-  "queries": [
-    {"query": "山东省中长期电力市场交易规则对发电量的要求", "province_codes": ["SD"]},
-    {"query": "海南省中长期电力市场交易规则对发电量的要求", "province_codes": ["HI"]}
-  ],
-  "should_split": true,
-  "split_reason": "涉及山东和海南两省份，需分别检索"
-}
-
-输入："陕西现货市场交易时间"
-输出：{
-  "queries": [
-    {"query": "陕西省现货市场交易时间安排", "province_codes": ["SN"]}
-  ],
-  "should_split": false,
-  "split_reason": "单省份查询无需拆分"
-}"""
+3. 无省份查询：province_codes为空数组 []"""
 
     def __init__(
         self,
@@ -125,12 +111,13 @@ class QueryRewriter:
         self.enabled = enabled
         self.always_rewrite = always_rewrite
     
-    def rewrite(self, query: str) -> RewriteResult:
+    def rewrite(self, query: str, history: List[str] = None) -> RewriteResult:
         """
-        Execute query rewrite with splitting support.
+        Execute query rewrite with coreference resolution.
         
         Args:
             query: Original query
+            history: Conversation history list (optional)
             
         Returns:
             RewriteResult with queries, should_split, and metadata
@@ -146,7 +133,13 @@ class QueryRewriter:
             )
         
         try:
-            prompt = f"用户查询：{query}\n\n请分析、改写并拆分此查询："
+            compressed_history = self._compress_history(history) if history else ""
+            
+            if compressed_history:
+                prompt = f"对话历史：\n{compressed_history}\n\n当前问题：{query}\n\n请分析当前问题，结合对话历史进行指代消解、改写并拆分："
+            else:
+                prompt = f"当前问题：{query}\n\n请分析、改写并拆分此问题："
+            
             result = self.llm.invoke_text(prompt, system=self.SYSTEM_PROMPT)
             
             queries, should_split, reason = self._parse_result(result, query)
@@ -160,7 +153,7 @@ class QueryRewriter:
                 should_split=should_split,
                 split_reason=reason,
                 triggered=True,
-                trigger_reason="llm_rewrite_and_split"
+                trigger_reason="llm_rewrite_with_coreference"
             )
             
         except Exception as e:
@@ -173,6 +166,76 @@ class QueryRewriter:
                 triggered=False,
                 trigger_reason="error"
             )
+    
+    def _compress_history(self, history: List[str], max_turns: int = 6, max_chars: int = 800) -> str:
+        """
+        Compress conversation history for LLM context.
+        
+        Args:
+            history: Full conversation history
+            max_turns: Maximum number of recent turns to include
+            max_chars: Maximum total characters
+            
+        Returns:
+            Compressed history string
+        """
+        if not history:
+            return ""
+        
+        recent = history[-max_turns:] if len(history) > max_turns else history
+        
+        compressed_lines = []
+        total_chars = 0
+        
+        for turn in recent:
+            clean_turn = self._clean_turn_text(turn)
+            
+            if len(clean_turn) > 150:
+                entities = self._extract_entities_from_turn(clean_turn)
+                if entities:
+                    compressed_turn = f"提到: {entities}"
+                else:
+                    compressed_turn = clean_turn[:150] + "..."
+            else:
+                compressed_turn = clean_turn
+            
+            if total_chars + len(compressed_turn) > max_chars:
+                break
+            
+            compressed_lines.append(compressed_turn)
+            total_chars += len(compressed_turn)
+        
+        return "\n".join(compressed_lines)
+    
+    def _clean_turn_text(self, turn: str) -> str:
+        """Remove Q:/A: prefixes from turn text."""
+        if turn.startswith("Q: ") or turn.startswith("A: "):
+            return turn[3:]
+        if turn.startswith("【历史摘要】"):
+            return turn[6:]
+        return turn
+    
+    def _extract_entities_from_turn(self, text: str) -> str:
+        """Extract key entities (policy name, province) from text."""
+        entities = []
+        
+        policy_patterns = [
+            r"《([^《》]+?细则)》",
+            r"《([^《》]+?规则)》",
+            r"《([^《》]+?办法)》",
+        ]
+        for pattern in policy_patterns:
+            match = re.search(pattern, text)
+            if match:
+                entities.append(match.group(0))
+                break
+        
+        for alias in sorted(PROVINCE_ALIASES.keys(), key=len, reverse=True):
+            if alias in text:
+                entities.append(alias)
+                break
+        
+        return ", ".join(entities) if entities else ""
     
     def _parse_result(self, result: str, original_query: str) -> Tuple[List[QueryPlan], bool, str]:
         """Parse LLM result to extract query plans."""

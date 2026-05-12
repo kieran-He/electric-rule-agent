@@ -133,8 +133,41 @@ def format_chunks_for_context_with_compression(
     for i, chunk in enumerate(chunks, 1):
         policy_level = chunk.metadata.get("policy_level", "formal")
         level_mark = " [草案]" if policy_level == "draft" else ""
-
-        line = f"{i}. {chunk.text}{level_mark}"
+        
+        doc_name = chunk.metadata.get("doc_name", "") or chunk.metadata.get("source_name", "")
+        article_no = chunk.metadata.get("article_no", "")
+        title_path = chunk.metadata.get("title_path", "")
+        
+        ref_info = ""
+        if doc_name:
+            short_name = _extract_short_doc_name(doc_name)
+            ref_info = f"【{short_name}】"
+            if article_no:
+                ref_info += f"第{article_no}条"
+            elif title_path:
+                ref_info += f"{title_path}"
+        
+        line = f"{i}. {ref_info} {chunk.text}{level_mark}"
         lines.append(line)
 
     return "\n".join(lines), stats
+
+
+def _extract_short_doc_name(doc_name: str) -> str:
+    import re
+    if not doc_name:
+        return ""
+    
+    match = re.search(r'《([^》]+)》', doc_name)
+    if match:
+        return match.group(1)
+    
+    if "实施细则" in doc_name:
+        match = re.search(r'(.{0,30}实施细则)', doc_name)
+        if match:
+            return match.group(1).strip()
+    
+    if doc_name.startswith("附件"):
+        doc_name = doc_name.replace("附件", "").strip()
+    
+    return doc_name[:30] if len(doc_name) > 30 else doc_name

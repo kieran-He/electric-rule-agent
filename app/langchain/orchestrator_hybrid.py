@@ -196,6 +196,7 @@ class HybridQAOrchestrator:
         query: str,
         province_codes: List[str],
         top_k: int,
+        history: List[str] = None,
     ) -> Tuple[List[PolicyChunk], List[str], RetrievalQuality]:
         """
         Hybrid retrieval: Vector + BM25 + BGE Rerank with province detection.
@@ -204,12 +205,13 @@ class HybridQAOrchestrator:
             query: User query
             province_codes: Province codes to search (default/fallback)
             top_k: Number of results
+            history: Conversation history for coreference resolution
             
         Returns:
             Tuple of (List of PolicyChunk, detected province codes, RetrievalQuality)
         """
         if self.hybrid_retriever is not None:
-            return self.hybrid_retriever.retrieve(query, province_codes)
+            return self.hybrid_retriever.retrieve(query, province_codes, history)
         else:
             fallback_codes = self._detect_provinces_fallback(query, province_codes)
             chunks = self._retrieve_vector(query, province_codes, top_k)
@@ -572,7 +574,7 @@ class HybridQAOrchestrator:
         start_time = time.time()
         
         retrieval_start = time.time()
-        chunks, detected_codes, retrieval_quality = self._retrieve(req.query, req.province_codes, req.top_k)
+        chunks, detected_codes, retrieval_quality = self._retrieve(req.query, req.province_codes, req.top_k, history)
         retrieval_latency = int((time.time() - retrieval_start) * 1000)
         metrics_store.record_latency(retrieval_latency, "retrieval")
         

@@ -73,21 +73,17 @@ class FeishuDocLinksManager:
             if p in text:
                 keywords.append(p)
         
-        market_keywords = ["电力现货", "现货市场", "中长期", "结算", "交易", "计量", "调频", "辅助服务", "零售", "省间"]
+        market_keywords = ["电力现货", "现货市场", "电力市场", "中长期", "结算", "交易", "计量", "调频", "辅助服务", "零售", "省间"]
         for m in market_keywords:
             if m in text:
                 keywords.append(m)
         
-        doc_type_keywords = ["实施细则", "细则", "规则", "方案", "办法", "通知"]
+        doc_type_keywords = ["实施细则", "细则", "规则", "办法", "方案", "通知", "规定", "工作方案"]
         for d in doc_type_keywords:
             if d in text:
                 keywords.append(d)
-                if d == "实施细则":
-                    keywords.append("细则")
-                elif d == "细则":
-                    keywords.append("实施细则")
         
-        version_keywords = ["V2", "V3", "2025", "2026", "试行", "征求意见"]
+        version_keywords = ["V2", "V3", "2025", "2026", "试行", "征求意见", "试运行", "修订"]
         for v in version_keywords:
             if v in text:
                 keywords.append(v)
@@ -103,10 +99,18 @@ class FeishuDocLinksManager:
 
 
 _feishu_doc_links: Optional[FeishuDocLinksManager] = None
+_last_config_path: Optional[str] = None
 
 
 def get_feishu_doc_links(config_path: str | None = None) -> FeishuDocLinksManager:
-    global _feishu_doc_links
+    global _feishu_doc_links, _last_config_path
+    
     if _feishu_doc_links is None:
         _feishu_doc_links = FeishuDocLinksManager(config_path)
+        _last_config_path = config_path
+    elif config_path and config_path != _last_config_path:
+        _feishu_doc_links._config_path = config_path
+        _feishu_doc_links.reload()
+        _last_config_path = config_path
+    
     return _feishu_doc_links
