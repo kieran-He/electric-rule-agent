@@ -49,6 +49,36 @@ class WebSearchTool(BaseTool):
             )
         
         province_codes = ctx.get("province_codes", [])
+        missing_provinces = ctx.get("missing_provinces", None)
+        rewrite_result = ctx.get("rewrite_result", None)
+        
+        from dataprocess.province_mapping import PROVINCE_CODE_ALIASES, PROVINCE_ALIASES
+        
+        target_provinces = []
+        
+        for alias, code in PROVINCE_ALIASES.items():
+            if alias in query:
+                target_provinces.append(code)
+                logger.info(f"[WebSearch] Detected province '{alias}' in query, using code '{code}'")
+                break
+        
+        if not target_provinces and missing_provinces:
+            for name in missing_provinces:
+                for alias, code in PROVINCE_ALIASES.items():
+                    if alias == name or name in alias:
+                        target_provinces.append(code)
+                        break
+            if target_provinces:
+                logger.info(f"[WebSearch] No province in query, using missing_provinces: {missing_provinces} -> codes: {target_provinces}")
+        
+        if not target_provinces and rewrite_result and rewrite_result.queries:
+            for qp in rewrite_result.queries:
+                target_provinces.extend(qp.province_codes)
+            if target_provinces:
+                logger.info(f"[WebSearch] Using provinces from rewrite_result: {target_provinces}")
+        
+        if target_provinces:
+            province_codes = target_provinces
         
         if not province_codes:
             logger.warning("[WebSearch] No province_codes provided, skipping search")
@@ -87,7 +117,13 @@ class WebSearchTool(BaseTool):
         
         for code in province_codes:
             province_name = PROVINCE_CODE_NAME.get(code, code)
-            province_query = f"{province_name} {query}"
+            
+            province_already_in_query = province_name in query
+            if province_already_in_query:
+                province_query = query
+                logger.debug(f"[WebSearch] Province '{province_name}' already in query, not adding prefix")
+            else:
+                province_query = f"{province_name} {query}"
             
             results = self._web_search_client.search(
                 query=province_query,

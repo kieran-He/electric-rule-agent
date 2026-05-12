@@ -98,7 +98,7 @@ def test_web_search_tool_execute():
     settings = SimpleNamespace(web_search_include_gov=True)
     tool = WebSearchTool(web_client, llm_wrapper, settings)
     
-    context = {"session_id": "test", "province_codes": ["SN"]}
+    context = {"session_id": "test", "province_codes": ["SN"], "missing_provinces": None, "rewrite_result": None}
     result = tool.execute("最新电力政策", context)
     
     assert result.success
