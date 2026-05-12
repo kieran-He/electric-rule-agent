@@ -1,0 +1,8 @@
+{
+  "doc_links": {
+    "陕西省电力需求响应实施方案": "https://example.feishu.cn/wiki/abc123",
+    "陕西省分布式光伏管理办法": "https://example.feishu.cn/wiki/def456",
+    "示例文档名称": "https://your-domain.feishu.cn/wiki/your-doc-token"
+  },
+  "_comment": "将此文件复制为 feishu_doc_links.json 并填入实际的飞书文档链接。键为文档名称(支持模糊匹配)，值为飞书文档URL。"
+}

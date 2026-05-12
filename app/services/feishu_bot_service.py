@@ -16,6 +16,7 @@ from app.db.models.processed_message import ProcessedMessage
 from app.schemas.answer import QueryAnswer
 from app.schemas.query import QueryRequest
 from app.services.query_service import QueryService
+from app.utils.feishu_doc_links import get_feishu_doc_links
 from app.utils.markdown_to_feishu import MarkdownToFeishuConverter
 from dataprocess.province_mapping import get_province_name
 
@@ -85,7 +86,96 @@ class FeishuBotService:
         return text.strip()
 
     def _format_reply(self, answer: QueryAnswer) -> str:
-        return answer.answer
+        text = answer.answer
+        if not answer.citations:
+            return text
+        
+        links_manager = get_feishu_doc_links(self.settings.feishu_doc_links_path)
+        if not links_manager.links:
+            return text
+        
+        processed_text = text
+        inserted_links = set()
+        
+        book_title_pattern = re.compile(r'《([^》]+)》')
+        matches = list(book_title_pattern.finditer(processed_text))
+        
+        for match in matches:
+            book_title = match.group(1)
+            link = links_manager.get_link(book_title)
+            if link and link not in inserted_links:
+                full_match = match.group(0)
+                processed_text = processed_text.replace(
+                    full_match,
+                    f"[{full_match}]({link})",
+                    1
+                )
+                inserted_links.add(link)
+        
+        for citation in answer.citations:
+            doc_name = citation.doc_name
+            link = links_manager.get_link(doc_name)
+            if not link or link in inserted_links:
+                continue
+            
+            article_ref = citation.article_no
+            if article_ref and len(article_ref) > 2:
+                article_patterns = [
+                    article_ref,
+                    f"第{article_ref}",
+                    f"第{article_ref}条",
+                    f"{article_ref}条",
+                ]
+                for pattern in article_patterns:
+                    if pattern in processed_text:
+                        processed_text = processed_text.replace(
+                            pattern,
+                            f"[{pattern}]({link})",
+                            1
+                        )
+                        inserted_links.add(link)
+                        break
+            
+            if link in inserted_links:
+                continue
+            
+            doc_short_name = self._extract_short_doc_name(doc_name)
+            if doc_short_name and len(doc_short_name) > 4:
+                short_patterns = [
+                    doc_short_name,
+                    f"{doc_short_name}",
+                ]
+                for pattern in short_patterns:
+                    if pattern in processed_text:
+                        processed_text = processed_text.replace(
+                            pattern,
+                            f"[{pattern}]({link})",
+                            1
+                        )
+                        inserted_links.add(link)
+                        break
+        
+        return processed_text
+    
+    def _extract_short_doc_name(self, doc_name: str) -> str | None:
+        if not doc_name:
+            return None
+        
+        match = re.search(r'《([^》]+)》', doc_name)
+        if match:
+            return match.group(1)
+        
+        if "实施细则" in doc_name:
+            match = re.search(r'(.{0,30}实施细则)', doc_name)
+            if match:
+                return match.group(1).strip()
+        
+        if "交易细则" in doc_name or "交易规则" in doc_name:
+            match = re.search(r'(.{0,30}(交易细则|交易规则))', doc_name)
+            if match:
+                return match.group(1).strip()
+        
+        return None
 
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:

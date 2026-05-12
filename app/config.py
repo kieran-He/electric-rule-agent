@@ -86,6 +86,7 @@ class Settings:
     web_search_on_low_relevance: bool = _env("WEB_SEARCH_ON_LOW_RELEVANCE", "true").lower() == "true"
     coreference_resolution_enabled: bool = _env("COREFERENCE_RESOLUTION_ENABLED", "true").lower() == "true"
     coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
+    feishu_doc_links_path: str = _env("FEISHU_DOC_LINKS_PATH", "./data/feishu_doc_links.json")
 
     @property
     def is_sqlite(self) -> bool:
