@@ -92,88 +92,45 @@ class FeishuBotService:
         if not links_manager.links:
             return text
         
-        processed_text = text
-        inserted_links = set()
-        used_doc_names = set()
-        
-        if answer.citations:
-            for citation in answer.citations:
-                doc_name = citation.doc_name
-                if doc_name and doc_name not in used_doc_names:
-                    used_doc_names.add(doc_name)
-        
-        primary_doc = ""
-        if used_doc_names:
-            primary_doc = list(used_doc_names)[0]
+        doc_names_found = []
         
         new_ref_pattern = re.compile(r'（《([^》]+）》(?:第?[一二三四五六七八九十百千万\d]+[\.\d]*条?)?)')
-        for match in list(new_ref_pattern.finditer(processed_text)):
-            doc_name_in_ref = match.group(1)
-            link = links_manager.get_link(doc_name_in_ref)
-            if link and link not in inserted_links:
-                full_match = match.group(0)
-                processed_text = processed_text.replace(
-                    full_match,
-                    f"[《{doc_name_in_ref}》]({link})",
-                    1
-                )
-                inserted_links.add(link)
+        for match in new_ref_pattern.finditer(text):
+            doc_name = match.group(1)
+            if doc_name not in doc_names_found:
+                doc_names_found.append(doc_name)
         
         ref_pattern1 = re.compile(r'\[参考：《([^》]+)》(?:[^]]*)?\]')
-        for match in list(ref_pattern1.finditer(processed_text)):
-            doc_name_in_ref = match.group(1)
-            link = links_manager.get_link(doc_name_in_ref)
-            if link and link not in inserted_links:
-                full_match = match.group(0)
-                processed_text = processed_text.replace(
-                    full_match,
-                    f"[《{doc_name_in_ref}》]({link})",
-                    1
-                )
-                inserted_links.add(link)
-        
-        ref_pattern_short = re.compile(r'\[参考：第?([一二三四五六七八九十百千万\d]+[\.\d]*)条?\]')
-        for match in list(ref_pattern_short.finditer(processed_text)):
-            if primary_doc:
-                link = links_manager.get_link(primary_doc)
-                if link and link not in inserted_links:
-                    full_match = match.group(0)
-                    processed_text = processed_text.replace(
-                        full_match,
-                        f"[《{primary_doc}》]({link})",
-                        1
-                    )
-                    inserted_links.add(link)
+        for match in ref_pattern1.finditer(text):
+            doc_name = match.group(1)
+            if doc_name not in doc_names_found:
+                doc_names_found.append(doc_name)
         
         ref_pattern2 = re.compile(r'【([^】]+)】(?:第?[一二三四五六七八九十百千万\d]+[\.\d]*条?|[\d\.]+)?')
-        for match in list(ref_pattern2.finditer(processed_text)):
-            doc_name_in_bracket = match.group(1)
-            link = links_manager.get_link(doc_name_in_bracket)
-            if link and link not in inserted_links:
-                full_match = match.group(0)
-                processed_text = processed_text.replace(
-                    full_match,
-                    f"[{full_match}]({link})",
-                    1
-                )
-                inserted_links.add(link)
+        for match in ref_pattern2.finditer(text):
+            doc_name = match.group(1)
+            if doc_name not in doc_names_found:
+                doc_names_found.append(doc_name)
         
         book_title_pattern = re.compile(r'《([^》]+)》')
-        for match in list(book_title_pattern.finditer(processed_text)):
-            if f"[《{match.group(1)}》]" in processed_text:
-                continue
-            book_title = match.group(1)
-            link = links_manager.get_link(book_title)
-            if link and link not in inserted_links:
-                full_match = match.group(0)
-                processed_text = processed_text.replace(
-                    full_match,
-                    f"[{full_match}]({link})",
-                    1
-                )
-                inserted_links.add(link)
+        for match in book_title_pattern.finditer(text):
+            doc_name = match.group(1)
+            if f"（《{doc_name}》" not in text and doc_name not in doc_names_found:
+                doc_names_found.append(doc_name)
         
-        return processed_text
+        doc_links = []
+        for doc_name in doc_names_found:
+            link = links_manager.get_link(doc_name)
+            if link:
+                doc_links.append((doc_name, link))
+        
+        if doc_links:
+            link_section = "\n\n---\n**相关文档**："
+            for doc_name, link in doc_links:
+                link_section += f"\n- 《{doc_name}》 [🔗]({link})"
+            return text + link_section
+        
+        return text
     
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:
