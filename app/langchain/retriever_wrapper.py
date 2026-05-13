@@ -141,11 +141,7 @@ def format_chunks_for_context_with_compression(
         ref_info = ""
         if doc_name:
             short_name = _extract_short_doc_name(doc_name)
-            ref_info = f"【{short_name}】"
-            if article_no:
-                ref_info += f"第{article_no}条"
-            elif title_path:
-                ref_info += f"{title_path}"
+            ref_info = f"《{short_name}》"
         
         line = f"{i}. {ref_info} {chunk.text}{level_mark}"
         lines.append(line)

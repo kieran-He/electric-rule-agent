@@ -92,45 +92,17 @@ class FeishuBotService:
         if not links_manager.links:
             return text
         
-        doc_names_found = []
-        
-        new_ref_pattern = re.compile(r'（《([^》]+）》(?:第?[一二三四五六七八九十百千万\d]+[\.\d]*条?)?)')
-        for match in new_ref_pattern.finditer(text):
-            doc_name = match.group(1)
-            if doc_name not in doc_names_found:
-                doc_names_found.append(doc_name)
-        
-        ref_pattern1 = re.compile(r'\[参考：《([^》]+)》(?:[^]]*)?\]')
-        for match in ref_pattern1.finditer(text):
-            doc_name = match.group(1)
-            if doc_name not in doc_names_found:
-                doc_names_found.append(doc_name)
-        
-        ref_pattern2 = re.compile(r'【([^】]+)】(?:第?[一二三四五六七八九十百千万\d]+[\.\d]*条?|[\d\.]+)?')
-        for match in ref_pattern2.finditer(text):
-            doc_name = match.group(1)
-            if doc_name not in doc_names_found:
-                doc_names_found.append(doc_name)
+        processed_text = text
         
         book_title_pattern = re.compile(r'《([^》]+)》')
-        for match in book_title_pattern.finditer(text):
+        for match in list(book_title_pattern.finditer(processed_text)):
             doc_name = match.group(1)
-            if f"（《{doc_name}》" not in text and doc_name not in doc_names_found:
-                doc_names_found.append(doc_name)
-        
-        doc_links = []
-        for doc_name in doc_names_found:
             link = links_manager.get_link(doc_name)
             if link:
-                doc_links.append((doc_name, link))
+                full_match = match.group(0)
+                processed_text = processed_text.replace(full_match, f"[●]({link})", 1)
         
-        if doc_links:
-            link_section = "\n\n---\n**相关文档**："
-            for doc_name, link in doc_links:
-                link_section += f"\n- 《{doc_name}》 [🔗]({link})"
-            return text + link_section
-        
-        return text
+        return processed_text
     
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:
