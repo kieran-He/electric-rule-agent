@@ -177,29 +177,47 @@ class AnswerVerifier:
         scores = {"accuracy": 5, "completeness": 5, "relevance": 5}
         
         try:
-            json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
-            if json_match:
-                parsed = json.loads(json_match.group())
-                for key in ["accuracy", "completeness", "relevance"]:
-                    if key in parsed:
-                        val = parsed[key]
-                        if isinstance(val, (int, float)):
-                            scores[key] = int(val)
-                        elif isinstance(val, str):
-                            scores[key] = int(float(val)) if val.replace('.', '').isdigit() else 5
-                return scores
-        except (json.JSONDecodeError, AttributeError, ValueError) as e:
+            json_patterns = [
+                r'\{[^{}]*\}',
+                r'\{(?:[^{}]|\{[^{}]*\})*\}',
+            ]
+            
+            for pattern in json_patterns:
+                matches = re.findall(pattern, response, re.DOTALL)
+                for match in matches:
+                    try:
+                        parsed = json.loads(match)
+                        if "scores" in parsed and isinstance(parsed["scores"], dict):
+                            parsed = parsed["scores"]
+                        if "evaluation" in parsed and isinstance(parsed["evaluation"], dict):
+                            parsed = parsed["evaluation"]
+                        
+                        for key in ["accuracy", "completeness", "relevance"]:
+                            if key in parsed:
+                                val = parsed[key]
+                                if isinstance(val, (int, float)):
+                                    scores[key] = int(val)
+                                elif isinstance(val, str):
+                                    try:
+                                        scores[key] = int(float(val))
+                                    except ValueError:
+                                        pass
+                        return scores
+                    except json.JSONDecodeError:
+                        continue
+        
+        except Exception as e:
             logger.debug(f"JSON parse failed: {e}, falling back to regex")
         
-        accuracy_match = re.search(r'"accuracy"\s*:\s*(\d+)', response)
+        accuracy_match = re.search(r'"accuracy"\s*:\s*["\']?(\d+)["\']?', response)
         if accuracy_match:
             scores["accuracy"] = int(accuracy_match.group(1))
         
-        completeness_match = re.search(r'"completeness"\s*:\s*(\d+)', response)
+        completeness_match = re.search(r'"completeness"\s*:\s*["\']?(\d+)["\']?', response)
         if completeness_match:
             scores["completeness"] = int(completeness_match.group(1))
         
-        relevance_match = re.search(r'"relevance"\s*:\s*(\d+)', response)
+        relevance_match = re.search(r'"relevance"\s*:\s*["\']?(\d+)["\']?', response)
         if relevance_match:
             scores["relevance"] = int(relevance_match.group(1))
         
