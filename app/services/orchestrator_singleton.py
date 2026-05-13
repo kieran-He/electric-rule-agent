@@ -5,12 +5,15 @@ Preloads orchestrator components at application startup to avoid first-request l
 """
 from __future__ import annotations
 
+import os
 import threading
 from typing import Any, Optional, TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
 from app.langchain.orchestrator_hybrid import HybridQAOrchestrator
+from app.services.answer_verifier import AnswerVerifier
+from evaluation.ragas_evaluator import get_ragas_evaluator
 import logging
 
 if TYPE_CHECKING:
@@ -39,6 +42,7 @@ class OrchestratorSingleton:
                     cls._instance = super().__new__(cls)
                     cls._instance._orchestrator: Optional[HybridQAOrchestrator] = None
                     cls._instance._settings: Optional[Any] = None
+                    cls._instance._verifier: Optional[AnswerVerifier] = None
         return cls._instance
     
     def preload(self, settings: "Settings") -> HybridQAOrchestrator:
@@ -63,6 +67,26 @@ class OrchestratorSingleton:
                     settings=settings,
                 )
                 self._settings = settings
+                
+                verification_enabled = getattr(settings, 'answer_verification_enabled', True)
+                if verification_enabled:
+                    try:
+                        ragas_evaluator = get_ragas_evaluator(
+                            use_mock=False,
+                            llm_endpoint=os.getenv("LLM_ENDPOINT", ""),
+                            llm_api_key=os.getenv("LLM_API_KEY", ""),
+                            llm_model=os.getenv("LLM_MODEL", "MiniMax-M2.7"),
+                        )
+                        self._verifier = AnswerVerifier(
+                            llm_wrapper=self._orchestrator.llm_wrapper,
+                            ragas_evaluator=ragas_evaluator,
+                            settings=settings,
+                        )
+                        self._orchestrator.verifier = self._verifier
+                        logger.info("AnswerVerifier initialized and attached to orchestrator")
+                    except Exception as e:
+                        logger.warning(f"Failed to initialize AnswerVerifier: {e}")
+                
                 logger.info("HybridQAOrchestrator preloaded successfully")
         
         return self._orchestrator
@@ -93,7 +117,9 @@ class OrchestratorSingleton:
     def get_stats(self) -> dict:
         """Get orchestrator stats if loaded."""
         if self._orchestrator:
-            return self._orchestrator.get_retrieval_stats()
+            stats = self._orchestrator.get_retrieval_stats()
+            stats["verification_enabled"] = self._verifier is not None
+            return stats
         return {"loaded": False}
     
     def clear(self) -> None:
@@ -101,6 +127,7 @@ class OrchestratorSingleton:
         with self._lock:
             self._orchestrator = None
             self._settings = None
+            self._verifier = None
 
 
 orchestrator_singleton = OrchestratorSingleton()

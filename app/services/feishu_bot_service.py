@@ -106,6 +106,19 @@ class FeishuBotService:
         if used_doc_names:
             primary_doc = list(used_doc_names)[0]
         
+        new_ref_pattern = re.compile(r'（《([^》]+）》(?:第?[一二三四五六七八九十百千万\d]+[\.\d]*条?)?)')
+        for match in list(new_ref_pattern.finditer(processed_text)):
+            doc_name_in_ref = match.group(1)
+            link = links_manager.get_link(doc_name_in_ref)
+            if link and link not in inserted_links:
+                full_match = match.group(0)
+                processed_text = processed_text.replace(
+                    full_match,
+                    f"[《{doc_name_in_ref}》]({link})",
+                    1
+                )
+                inserted_links.add(link)
+        
         ref_pattern1 = re.compile(r'\[参考：《([^》]+)》(?:[^]]*)?\]')
         for match in list(ref_pattern1.finditer(processed_text)):
             doc_name_in_ref = match.group(1)

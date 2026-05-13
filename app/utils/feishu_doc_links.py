@@ -49,6 +49,10 @@ class FeishuDocLinksManager:
             return self._links[doc_name]
 
         doc_name_normalized = doc_name.replace(" ", "").replace("　", "")
+        
+        best_match = None
+        best_match_score = 0
+        
         for key, url in self._links.items():
             key_normalized = key.replace(" ", "").replace("　", "")
             if key_normalized == doc_name_normalized:
@@ -59,11 +63,31 @@ class FeishuDocLinksManager:
             doc_keywords = self._extract_keywords(doc_name_normalized)
             key_keywords = self._extract_keywords(key_normalized)
             if doc_keywords and key_keywords:
-                match_count = sum(1 for kw in doc_keywords if kw in key_keywords)
-                min_required = max(2, int(len(doc_keywords) * 0.6))
-                if match_count >= min_required:
-                    return url
+                doc_province = self._get_province(doc_keywords)
+                key_province = self._get_province(key_keywords)
+                if doc_province and key_province and doc_province != key_province:
+                    continue
+                
+                core_keywords = [kw for kw in doc_keywords if kw not in ["实施细则", "细则", "规则", "办法", "方案", "通知", "规定", "工作方案"]]
+                key_core_keywords = [kw for kw in key_keywords if kw not in ["实施细则", "细则", "规则", "办法", "方案", "通知", "规定", "工作方案"]]
+                
+                if core_keywords and key_core_keywords:
+                    match_count = sum(1 for kw in core_keywords if kw in key_core_keywords)
+                    score = match_count / max(len(core_keywords), len(key_core_keywords))
+                    if score > best_match_score and score >= 0.3:
+                        best_match = (key, url)
+                        best_match_score = score
 
+        if best_match:
+            return best_match[1]
+
+        return None
+    
+    def _get_province(self, keywords: list[str]) -> Optional[str]:
+        province_keywords = ["陕西", "甘肃", "山西", "山东", "安徽"]
+        for kw in keywords:
+            if kw in province_keywords:
+                return kw
         return None
     
     def _extract_keywords(self, text: str) -> list[str]:
@@ -73,7 +97,7 @@ class FeishuDocLinksManager:
             if p in text:
                 keywords.append(p)
         
-        market_keywords = ["电力现货", "现货市场", "电力市场", "中长期", "结算", "交易", "计量", "调频", "辅助服务", "零售", "省间"]
+        market_keywords = ["电力现货", "现货市场", "电力市场", "中长期", "结算", "交易", "计量", "调频", "辅助服务", "零售", "省间", "电能量"]
         for m in market_keywords:
             if m in text:
                 keywords.append(m)
@@ -83,7 +107,7 @@ class FeishuDocLinksManager:
             if d in text:
                 keywords.append(d)
         
-        version_keywords = ["V2", "V3", "2025", "2026", "试行", "征求意见", "试运行", "修订"]
+        version_keywords = ["V2", "V3", "V6", "2025", "2026", "试行", "征求意见", "试运行", "修订", "结算试运行"]
         for v in version_keywords:
             if v in text:
                 keywords.append(v)

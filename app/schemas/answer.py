@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
@@ -23,6 +24,7 @@ class QueryAnswer(BaseModel):
     flow: str | None = None
     warnings: list[str] = Field(default_factory=list)
     detected_provinces: str | None = None
+    verification: Optional[dict[str, Any]] = None
 
 
 QueryResponse = QueryAnswer

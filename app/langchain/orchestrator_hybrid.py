@@ -28,6 +28,7 @@ from app.langchain.llm import MiniMaxLLMWrapper
 from app.prompts.prompt_selector import PromptSelector
 if TYPE_CHECKING:
     from app.services.trace_service import TraceService
+    from app.services.answer_verifier import AnswerVerifier
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,7 @@ class HybridQAOrchestrator:
         self.web_search_client = create_web_search_client(self.settings)
         
         self.prompt_selector = PromptSelector()
+        self.verifier: Optional["AnswerVerifier"] = None
         
         if use_hybrid:
             self._init_hybrid_retriever()
@@ -344,7 +346,7 @@ class HybridQAOrchestrator:
         history: list[str] = None,
         rewrite_result: Optional[RewriteResult] = None,
         retrieval_quality: Optional[RetrievalQuality] = None,
-    ) -> tuple[str, int, int, str]:
+    ) -> tuple[str, int, int, str, Optional[dict]]:
         """
         Generate answer using LangChain LLM with token counts.
         
@@ -357,7 +359,7 @@ class HybridQAOrchestrator:
             retrieval_quality: Optional retrieval quality info for fallback decision
             
         Returns:
-            Tuple of (answer string, input_tokens, output_tokens, intent)
+            Tuple of (answer string, input_tokens, output_tokens, intent, verification dict)
         """
         from app.langchain.retriever_wrapper import format_chunks_for_context_with_compression
         
@@ -371,11 +373,11 @@ class HybridQAOrchestrator:
                 web_answer = self._web_search_fallback(query, rewrite_result)
                 if chunks:
                     provincial_context = self._build_context_from_chunks(chunks)
-                    return f"{provincial_context}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}", 0, 0, "hybrid"
-                return web_answer, 0, 0, "web_search"
+                    return f"{provincial_context}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}", 0, 0, "hybrid", None
+                return web_answer, 0, 0, "web_search", None
         
         if not chunks:
-            return self._web_search_fallback(query, rewrite_result), 0, 0, "query"
+            return self._web_search_fallback(query, rewrite_result), 0, 0, "query", None
         
         detected_provinces = self._get_provinces_from_rewrite(rewrite_result, query)
         filtered_history = self._filter_history_by_provinces(history, detected_provinces)
@@ -411,7 +413,7 @@ class HybridQAOrchestrator:
         try:
             answer, input_tokens, output_tokens = self.llm_wrapper.invoke(user_content, system=system_prompt)
             if not answer:
-                return self._build_mock_answer(query, chunks), input_tokens, output_tokens, detected_intent
+                return self._build_mock_answer(query, chunks), input_tokens, output_tokens, detected_intent, None
             
             if self._contains_insufficient_evidence(answer):
                 web_search_enabled = getattr(self.settings, 'web_search_on_insufficient_evidence', True)
@@ -419,12 +421,34 @@ class HybridQAOrchestrator:
                     logger.info(f"Evidence insufficient detected, triggering web search for: {query}")
                     web_answer = self._web_search_fallback(query, rewrite_result)
                     combined_answer = f"{answer}\n\n---\n\n**补充信息（来自网络搜索）：**\n{web_answer}"
-                    return combined_answer, input_tokens, output_tokens, detected_intent
+                    return combined_answer, input_tokens, output_tokens, detected_intent, None
             
-            return answer, input_tokens, output_tokens, detected_intent
+            verification_enabled = getattr(self.settings, 'answer_verification_enabled', True)
+            verification_dict = None
+            if verification_enabled and self.verifier:
+                try:
+                    verification = self.verifier.verify(
+                        query=query,
+                        answer=answer,
+                        contexts=[c.text for c in chunks],
+                    )
+                    verification_dict = {
+                        "faithfulness": verification.faithfulness,
+                        "answer_relevancy": verification.answer_relevancy,
+                        "context_precision": verification.context_precision,
+                        "confidence": verification.confidence,
+                        "needs_retry": verification.needs_retry,
+                        "verification_type": verification.verification_type,
+                    }
+                    if verification.warning:
+                        answer = f"{answer}\n\n⚠️ {verification.warning}"
+                except Exception as e:
+                    logger.warning(f"Verification error: {e}")
+            
+            return answer, input_tokens, output_tokens, detected_intent, verification_dict
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
-            return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0, detected_intent
+            return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0, detected_intent, None
     
     def _web_search_fallback(
         self,
@@ -585,7 +609,7 @@ class HybridQAOrchestrator:
         province_code = detected_codes[0] if detected_codes else "SN"
         
         llm_start = time.time()
-        answer, input_tokens, output_tokens, detected_intent = self._generate_answer_with_tokens(
+        answer, input_tokens, output_tokens, detected_intent, verification = self._generate_answer_with_tokens(
             req.query, chunks, province_code, history or [], rewrite_result,
             retrieval_quality=retrieval_quality
         )
@@ -639,16 +663,21 @@ class HybridQAOrchestrator:
         
         detected_provinces_str = ", ".join(detected_codes) if detected_codes else ""
         
+        confidence = 0.8 if chunks else 0.3
+        if verification and verification.get("confidence"):
+            confidence = verification.get("confidence")
+        
         return QueryAnswer(
             answer=answer,
             citations=citations,
             intent=detected_intent,
-            confidence=0.8 if chunks else 0.3,
+            confidence=confidence,
             used_documents=used_documents,
             trace_id=trace_id,
             flow=None,
             warnings=[] if chunks else ["未检索到相关文档"],
             detected_provinces=detected_provinces_str,
+            verification=verification,
         )
     
     def get_retrieval_stats(self) -> dict:

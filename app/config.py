@@ -87,6 +87,10 @@ class Settings:
     coreference_resolution_enabled: bool = _env("COREFERENCE_RESOLUTION_ENABLED", "true").lower() == "true"
     coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
     feishu_doc_links_path: str = _env("FEISHU_DOC_LINKS_PATH", "./data/feishu_doc_links.json")
+    answer_verification_enabled: bool = _env("ANSWER_VERIFICATION_ENABLED", "true").lower() == "true"
+    verification_quick_threshold: float = float(_env("VERIFICATION_QUICK_THRESHOLD", "0.75"))
+    verification_retry_threshold: float = float(_env("VERIFICATION_RETRY_THRESHOLD", "0.5"))
+    verification_warning_threshold: float = float(_env("VERIFICATION_WARNING_THRESHOLD", "0.6"))
 
     @property
     def is_sqlite(self) -> bool:
