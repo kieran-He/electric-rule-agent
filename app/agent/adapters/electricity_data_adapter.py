@@ -6,6 +6,9 @@ import subprocess
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Optional
+
+from app.agent.adapters.data_cache import DataCache
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +36,11 @@ class ElectricityDataAdapter(ABC):
 
 
 class SkillsScriptAdapter(ElectricityDataAdapter):
-    def __init__(self, skills_path: str = None):
+    def __init__(self, skills_path: str = None, cache_ttl: int = 3600, cache_max_size: int = 1000):
         self.skills_path = Path(skills_path) if skills_path else SKILLS_PATH
         self.scripts_path = self.skills_path / "scripts"
         self._db_configured = self._check_db_config()
+        self._cache = DataCache(ttl=cache_ttl, max_size=cache_max_size)
     
     def _check_db_config(self) -> bool:
         config_path = Path.home() / ".electricity_data_skills.json"
@@ -105,9 +109,15 @@ class SkillsScriptAdapter(ElectricityDataAdapter):
         metric: str,
         time_range: str,
     ) -> list:
+        cache_key = f"{province}:{metric}:{time_range}"
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.info(f"[SkillsScriptAdapter] Cache hit for {cache_key}")
+            return cached
+        
         if not self._db_configured:
-            logger.warning("[SkillsScriptAdapter] Database not configured")
-            return []
+            logger.warning("[SkillsScriptAdapter] Database not configured, returning fallback")
+            return self._fallback_data(province, metric, time_range)
         
         region = self._map_province_to_region(province)
         start_date, end_date = self._get_date_range(time_range)
@@ -151,7 +161,9 @@ class SkillsScriptAdapter(ElectricityDataAdapter):
             if result_file.exists():
                 with open(result_file) as f:
                     data = json.load(f)
-                    return data.get("data", [])
+                    processed = data.get("data", [])
+                    self._cache.set(cache_key, processed)
+                    return processed
             
             return []
             
@@ -161,6 +173,10 @@ class SkillsScriptAdapter(ElectricityDataAdapter):
         except Exception as e:
             logger.exception(f"[SkillsScriptAdapter] Failed: {e}")
             return []
+    
+    def _fallback_data(self, province: str, metric: str, time_range: str) -> list:
+        logger.info(f"[SkillsScriptAdapter] Fallback data for {province}/{metric}/{time_range} - DB not configured")
+        return []
 
 
 class SkillsAPIAdapter(ElectricityDataAdapter):

@@ -70,6 +70,7 @@ class ElectricityAgentGraph:
         
         workflow.set_entry_point("intent_classifier")
         
+        # Intent classifier routes to appropriate starting node
         workflow.add_conditional_edges(
             "intent_classifier",
             self._route_by_intent,
@@ -77,19 +78,40 @@ class ElectricityAgentGraph:
                 "policy": "policy_retriever",
                 "data": "data_fetcher",
                 "analysis": "data_fetcher",
-                "hybrid": "policy_retriever",
+                "hybrid": "policy_retriever",  # Start with policy, then get data
                 "end": END,
             }
         )
         
+        # Data path: fetcher -> analyzer -> response
         workflow.add_edge("data_fetcher", "data_analyzer")
-        
-        workflow.add_edge("policy_retriever", "response_generator")
         workflow.add_edge("data_analyzer", "response_generator")
+        
+        # Policy path: policy_query goes directly to response
+        # Hybrid path: policy -> data_fetcher -> data_analyzer -> response
+        workflow.add_conditional_edges(
+            "policy_retriever",
+            self._route_after_policy,
+            {
+                "generate": "response_generator",
+                "fetch_data": "data_fetcher",
+            }
+        )
         
         workflow.add_edge("response_generator", END)
         
         return workflow
+    
+    def _route_after_policy(self, state: ElectricityAgentState) -> str:
+        """After policy retrieval, decide if we also need data."""
+        intent = state.get("intent", "hybrid")
+        
+        # For hybrid intent, also fetch data after getting policy
+        if intent == "hybrid":
+            return "fetch_data"
+        
+        # For pure policy queries, go directly to response generation
+        return "generate"
 
     def _route_by_intent(self, state: ElectricityAgentState) -> str:
         intent = state.get("intent", "hybrid")
@@ -122,6 +144,9 @@ class ElectricityAgentGraph:
                 "context": context or {},
             },
             "intent": "",
+            "intent_confidence": 0.0,
+            "intent_reason": "",
+            "sub_intents": [],
             "policy_chunks": [],
             "electricity_data": None,
             "analysis_result": None,
@@ -160,6 +185,9 @@ class ElectricityAgentGraph:
                 "session_id": session_id,
             },
             "intent": "",
+            "intent_confidence": 0.0,
+            "intent_reason": "",
+            "sub_intents": [],
             "policy_chunks": [],
             "electricity_data": None,
             "analysis_result": None,
@@ -177,7 +205,12 @@ class ElectricityAgentGraph:
         for event in self.app.stream(initial_state, config):
             yield event
     
-    def chat(self, request: AgentRequest) -> AgentResponse:
+    def chat(
+        self,
+        request: AgentRequest,
+        db: Any = None,
+        trace_service: Any = None,
+    ) -> AgentResponse:
         trace_id = f"agent_{uuid.uuid4().hex[:12]}"
         
         result = self.run(

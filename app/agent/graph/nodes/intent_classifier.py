@@ -1,37 +1,56 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 
 from app.agent.graph.state import ElectricityAgentState
+from app.agent.graph.nodes.intent_rules import RuleClassifier
+from app.agent.graph.nodes.intent_llm import LLMClassifier
+
+if TYPE_CHECKING:
+    from app.langchain.llm import MiniMaxLLMWrapper
 
 logger = logging.getLogger(__name__)
+
+RULE_THRESHOLD = 0.85
+LLM_THRESHOLD = 0.70
 
 
 def intent_classifier_node(state: ElectricityAgentState) -> Dict:
     query = state["query"]
     
-    policy_keywords = ["政策", "规则", "通知", "规定", "条款", "准入", "交易规则"]
-    data_keywords = ["负荷", "发电量", "用电量", "电价", "实时", "曲线", "数据"]
-    analysis_keywords = ["统计", "均值", "方差", "分析", "趋势", "增长", "分布"]
+    rule_result = RuleClassifier.classify(query)
+    logger.info(f"[IntentClassifier] Rule result: intent={rule_result['intent']}, confidence={rule_result['confidence']:.2f}")
     
-    has_policy = any(kw in query for kw in policy_keywords)
-    has_data = any(kw in query for kw in data_keywords)
-    has_analysis = any(kw in query for kw in analysis_keywords)
+    if rule_result["confidence"] >= RULE_THRESHOLD:
+        logger.info(f"[IntentClassifier] High confidence rule result, skipping LLM")
+        return {
+            "intent": rule_result["intent"],
+            "intent_confidence": rule_result["confidence"],
+            "intent_reason": rule_result["reason"],
+            "sub_intents": rule_result.get("sub_intents", []),
+            "provinces": rule_result.get("detected_regions", []) or state.get("provinces", []),
+        }
     
-    if has_policy and (has_data or has_analysis):
-        intent = "hybrid"
-    elif has_analysis:
-        intent = "analysis"
-    elif has_data:
-        intent = "data_query"
-    elif has_policy:
-        intent = "policy_query"
-    else:
-        intent = "hybrid"
+    from app.agent.graph.electricity_agent_graph import _get_current_instance
+    graph_instance = _get_current_instance()
     
-    logger.info(f"[IntentClassifier] Query: {query[:50]}, Intent: {intent}")
+    llm_wrapper = None
+    if graph_instance:
+        llm_wrapper = graph_instance.llm_wrapper
+    
+    llm_result = LLMClassifier.classify(query, rule_result, llm_wrapper)
+    logger.info(f"[IntentClassifier] LLM result: intent={llm_result['intent']}, confidence={llm_result['confidence']:.2f}")
+    
+    provinces = state.get("provinces", [])
+    detected_regions = llm_result.get("detected_regions", []) or rule_result.get("detected_regions", [])
+    if detected_regions:
+        provinces = list(set(provinces + detected_regions))
     
     return {
-        "intent": intent,
+        "intent": llm_result["intent"],
+        "intent_confidence": llm_result["confidence"],
+        "intent_reason": llm_result["reason"],
+        "sub_intents": llm_result.get("sub_intents", []),
+        "provinces": provinces,
     }

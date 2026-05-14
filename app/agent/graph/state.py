@@ -6,6 +6,9 @@ class ElectricityAgentState(TypedDict):
     messages: Annotated[List[Dict], add_messages]
     query: str
     intent: str
+    intent_confidence: float
+    intent_reason: str
+    sub_intents: List[str]
     provinces: List[str]
     policy_chunks: List[Dict]
     electricity_data: Optional[Dict]

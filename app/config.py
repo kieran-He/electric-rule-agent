@@ -100,6 +100,11 @@ class Settings:
     electricity_db_port: int = int(_env("ELECTRICITY_DB_PORT", "3306"))
     electricity_db_user: str = _env("ELECTRICITY_DB_USER", "")
     electricity_db_password: str = _env("ELECTRICITY_DB_PASSWORD", "")
+    
+    intent_rule_threshold: float = float(_env("INTENT_RULE_THRESHOLD", "0.85"))
+    intent_llm_threshold: float = float(_env("INTENT_LLM_THRESHOLD", "0.70"))
+    data_cache_ttl: int = int(_env("DATA_CACHE_TTL", "3600"))
+    data_cache_max_size: int = int(_env("DATA_CACHE_MAX_SIZE", "1000"))
 
     @property
     def is_sqlite(self) -> bool:
