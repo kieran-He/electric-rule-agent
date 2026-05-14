@@ -221,6 +221,7 @@ class AnswerVerifier:
         if relevance_match:
             scores["relevance"] = int(relevance_match.group(1))
         
+        logger.debug(f"Parsed scores from response: {scores}, raw response: {response[:200]}")
         return scores
 
     def _ragas_verify(

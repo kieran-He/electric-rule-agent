@@ -1,4 +1,9 @@
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+MAX_TABLES = 5
 
 
 class MarkdownToFeishuConverter:
@@ -7,6 +12,7 @@ class MarkdownToFeishuConverter:
             return self._empty_interactive()
         
         processed_text = self._process_latex_formulas(text)
+        processed_text = self._limit_tables(processed_text)
         
         return {
             "schema": "2.0",
@@ -95,3 +101,33 @@ class MarkdownToFeishuConverter:
     def _escape_for_card(self, text: str) -> str:
         text = text.replace('\\', '&#92;')
         return text
+    
+    def _limit_tables(self, text: str) -> str:
+        table_pattern = re.compile(r'^\|.+\|[\r\n]+\|[-:| ]+\|', re.MULTILINE)
+        tables = list(table_pattern.finditer(text))
+        
+        if len(tables) <= MAX_TABLES:
+            return text
+        
+        logger.warning(f"Too many tables ({len(tables)}), limiting to {MAX_TABLES}")
+        
+        result = text
+        for i, match in enumerate(reversed(tables)):
+            if i >= len(tables) - MAX_TABLES:
+                break
+            
+            start = match.start()
+            end = self._find_table_end(result, start)
+            table_text = result[start:end]
+            result = result.replace(table_text, f"\n[表格已省略]\n")
+        
+        return result
+    
+    def _find_table_end(self, text: str, start: int) -> int:
+        lines = text[start:].split('\n')
+        end_offset = start
+        for i, line in enumerate(lines):
+            if i > 0 and not line.strip().startswith('|'):
+                break
+            end_offset += len(line) + 1
+        return end_offset
