@@ -1,0 +1,21 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Python files use LF
+*.py text eol=lf
+
+# Markdown files use LF
+*.md text eol=lf
+
+# JSON files use LF
+*.json text eol=lf
+
+# Windows batch files use CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.gif binary
+*.pdf binary

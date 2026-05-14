@@ -88,6 +88,18 @@ class Settings:
     coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
     agent_use_react: bool = _env("AGENT_USE_REACT", "true").lower() == "true"
     agent_max_iterations: int = int(_env("AGENT_MAX_ITERATIONS", "3"))
+    agent_framework: str = _env("AGENT_FRAMEWORK", "langgraph")
+    electricity_skills_url: str = _env("ELECTRICITY_SKILLS_URL", "")
+    electricity_skills_path: str = _env("ELECTRICITY_SKILLS_PATH", "./data/skills/agentic-data-analysis")
+    electricity_data_dir: str = _env("ELECTRICITY_DATA_DIR", "")
+    analysis_cache_ttl: int = int(_env("ANALYSIS_CACHE_TTL", "3600"))
+    analysis_max_points: int = int(_env("ANALYSIS_MAX_POINTS", "10000"))
+    langsmith_tracing: bool = _env("LANGSMITH_TRACING", "false").lower() == "true"
+    
+    electricity_db_host: str = _env("ELECTRICITY_DB_HOST", "")
+    electricity_db_port: int = int(_env("ELECTRICITY_DB_PORT", "3306"))
+    electricity_db_user: str = _env("ELECTRICITY_DB_USER", "")
+    electricity_db_password: str = _env("ELECTRICITY_DB_PASSWORD", "")
 
     @property
     def is_sqlite(self) -> bool:
