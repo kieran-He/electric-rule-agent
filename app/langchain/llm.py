@@ -140,3 +140,45 @@ class MiniMaxLLMWrapper:
         """
         text, _, _ = self.invoke(prompt, system)
         return text
+    
+    def get_client(self) -> ChatAnthropic:
+        """
+        Return underlying ChatAnthropic client for tool binding.
+        
+        Use this to access the raw client for advanced features like
+        bind_tools() for ReAct agent implementation.
+        """
+        return self._get_client()
+    
+    def invoke_with_tools(
+        self,
+        messages: list,
+        tools: list,
+    ) -> "AIMessage":
+        """
+        Invoke LLM with tool binding for ReAct loop.
+        
+        Args:
+            messages: List of message dicts or BaseMessage objects
+            tools: List of StructuredTool objects to bind
+            
+        Returns:
+            AIMessage with potential tool_calls attribute
+        """
+        from langchain_core.messages import HumanMessage, SystemMessage
+        
+        client = self._get_client()
+        
+        formatted_messages = []
+        for msg in messages:
+            if isinstance(msg, dict):
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "system":
+                    formatted_messages.append(SystemMessage(content=content))
+                else:
+                    formatted_messages.append(HumanMessage(content=content))
+            else:
+                formatted_messages.append(msg)
+        
+        return client.bind_tools(tools).invoke(formatted_messages)

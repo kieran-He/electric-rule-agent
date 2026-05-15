@@ -59,8 +59,9 @@ class FeishuBot:
         logger.info("Preloading reranker model...")
         reranker_cache.preload(settings.reranker_model, settings.reranker_max_length)
         
-        logger.info("Preloading PowerPolicyAgent...")
-        preload_agent(settings)
+        logger.info("Preloading Agent...")
+        if not preload_agent(settings):
+            raise RuntimeError("Failed to preload agent. Check logs for details.")
         
         logger.info("All models preloaded successfully")
 

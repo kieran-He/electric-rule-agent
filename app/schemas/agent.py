@@ -27,3 +27,4 @@ class AgentResponse(BaseModel):
     confidence: float = Field(default=0.0, description="Answer confidence")
     trace_id: Optional[str] = Field(default=None, description="Trace ID for debugging")
     detected_provinces: Optional[str] = Field(default=None, description="Detected provinces")
+    chart_paths: List[str] = Field(default_factory=list, description="Paths to generated chart images")

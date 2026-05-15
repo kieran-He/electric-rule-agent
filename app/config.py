@@ -87,8 +87,10 @@ class Settings:
     coreference_resolution_enabled: bool = _env("COREFERENCE_RESOLUTION_ENABLED", "true").lower() == "true"
     coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
     agent_use_react: bool = _env("AGENT_USE_REACT", "true").lower() == "true"
-    agent_max_iterations: int = int(_env("AGENT_MAX_ITERATIONS", "3"))
+    agent_max_iterations: int = int(_env("AGENT_MAX_ITERATIONS", "5"))
     agent_framework: str = _env("AGENT_FRAMEWORK", "langgraph")
+    agent_tool_timeout: int = int(_env("AGENT_TOOL_TIMEOUT", "60"))
+    tools_enabled: str = _env("TOOLS_ENABLED", "retrieve_policy,fetch_electricity_data,analyze_statistics")
     electricity_skills_url: str = _env("ELECTRICITY_SKILLS_URL", "")
     electricity_skills_path: str = _env("ELECTRICITY_SKILLS_PATH", "./data/skills/agentic-data-analysis")
     electricity_data_dir: str = _env("ELECTRICITY_DATA_DIR", "")
@@ -100,6 +102,7 @@ class Settings:
     electricity_db_port: int = int(_env("ELECTRICITY_DB_PORT", "3306"))
     electricity_db_user: str = _env("ELECTRICITY_DB_USER", "")
     electricity_db_password: str = _env("ELECTRICITY_DB_PASSWORD", "")
+    base_db_name: str = _env("BASE_DB_NAME", "electricity_trading_analytics_shaanxi")
     
     intent_rule_threshold: float = float(_env("INTENT_RULE_THRESHOLD", "0.85"))
     intent_llm_threshold: float = float(_env("INTENT_LLM_THRESHOLD", "0.70"))
@@ -114,6 +117,11 @@ class Settings:
     def province_defaults(self) -> List[str]:
         codes = [c.strip().upper() for c in self.province_default.split(",") if c.strip()]
         return codes if codes else ["SN"]
+    
+    @property
+    def tools_enabled_list(self) -> List[str]:
+        tools = [t.strip() for t in self.tools_enabled.split(",") if t.strip()]
+        return tools if tools else ["retrieve_policy", "fetch_electricity_data", "analyze_statistics"]
 
     def ensure_dirs(self) -> None:
         for raw_path in [self.log_file, self.chroma_path, self.docs_root, "data/processed"]:

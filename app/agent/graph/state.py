@@ -10,10 +10,64 @@ class ElectricityAgentState(TypedDict):
     intent_reason: str
     sub_intents: List[str]
     provinces: List[str]
+    
+    thoughts: List[Dict]
+    iteration_count: int
+    max_iterations: int
+    
+    tool_calls: List[Dict]
+    tool_results: List[Dict]
+    last_tool_calls: List[Dict]
+    
     policy_chunks: List[Dict]
     electricity_data: Optional[Dict]
     analysis_result: Optional[Dict]
+    chart_paths: List[str]
+    
     answer: str
-    metadata: Dict[str, Any]
-    tool_calls: List[str]
+    citations: List[Dict]
     confidence: float
+    done: bool
+    
+    metadata: Dict[str, Any]
+    errors: List[Dict]
+
+
+def create_initial_state(
+    query: str,
+    provinces: List[str] = None,
+    session_id: str = None,
+    history: List[Dict] = None,
+    context: Dict[str, Any] = None,
+    max_iterations: int = 5,
+) -> ElectricityAgentState:
+    import time
+    return {
+        "query": query,
+        "provinces": provinces or ["SN"],
+        "messages": history or [],
+        "metadata": {
+            "session_id": session_id,
+            "context": context or {},
+            "start_time": time.time(),
+        },
+        "intent": "",
+        "intent_confidence": 0.0,
+        "intent_reason": "",
+        "sub_intents": [],
+        "thoughts": [],
+        "iteration_count": 0,
+        "max_iterations": max_iterations,
+        "tool_calls": [],
+        "tool_results": [],
+        "last_tool_calls": [],
+        "policy_chunks": [],
+        "electricity_data": None,
+        "analysis_result": None,
+        "chart_paths": [],
+        "answer": "",
+        "citations": [],
+        "confidence": 0.0,
+        "done": False,
+        "errors": [],
+    }

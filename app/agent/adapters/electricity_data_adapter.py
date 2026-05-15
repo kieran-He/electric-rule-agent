@@ -37,7 +37,13 @@ class ElectricityDataAdapter(ABC):
 
 class SkillsScriptAdapter(ElectricityDataAdapter):
     def __init__(self, skills_path: str = None, cache_ttl: int = 3600, cache_max_size: int = 1000):
-        self.skills_path = Path(skills_path) if skills_path else SKILLS_PATH
+        if skills_path:
+            path = Path(skills_path)
+            if not path.is_absolute():
+                path = Path.cwd() / path
+            self.skills_path = path
+        else:
+            self.skills_path = SKILLS_PATH
         self.scripts_path = self.skills_path / "scripts"
         self._db_configured = self._check_db_config()
         self._cache = DataCache(ttl=cache_ttl, max_size=cache_max_size)
@@ -108,7 +114,7 @@ class SkillsScriptAdapter(ElectricityDataAdapter):
         province: str,
         metric: str,
         time_range: str,
-    ) -> list:
+    ):
         cache_key = f"{province}:{metric}:{time_range}"
         cached = self._cache.get(cache_key)
         if cached is not None:
@@ -142,28 +148,51 @@ class SkillsScriptAdapter(ElectricityDataAdapter):
         
         logger.info(f"[SkillsScriptAdapter] Running: {' '.join(cmd)}")
         
+        # 清除 VIRTUAL_ENV 避免 uv 环境冲突，设置 UTF-8 编码
+        env = os.environ.copy()
+        env.pop("VIRTUAL_ENV", None)
+        env["PYTHONIOENCODING"] = "utf-8"
+        
         try:
             result = subprocess.run(
                 cmd,
                 cwd=str(self.skills_path),
                 capture_output=True,
-                text=True,
                 timeout=60,
+                env=env,
             )
             
+            # 使用 UTF-8 解码，忽略无法解码的字符
+            stdout = result.stdout.decode('utf-8', errors='replace') if result.stdout else ""
+            stderr = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
+            
             if result.returncode != 0:
-                logger.error(f"[SkillsScriptAdapter] Script failed: {result.stderr}")
+                logger.error(f"[SkillsScriptAdapter] Script failed: {stderr[:500]}")
                 return []
             
-            logger.info(f"[SkillsScriptAdapter] Script output: {result.stdout[:500]}")
+            logger.info(f"[SkillsScriptAdapter] Script output: {stdout[:500]}")
             
             result_file = output_dir / "basic_stats.json"
             if result_file.exists():
-                with open(result_file) as f:
+                with open(result_file, encoding='utf-8') as f:
                     data = json.load(f)
                     processed = data.get("data", [])
-                    self._cache.set(cache_key, processed)
-                    return processed
+                    result = {
+                        "data": processed,
+                        "data_points": data.get("data_points", len(processed)),
+                        "chart_path": data.get("chart_path", ""),
+                        "statistics": data.get("statistics", {}),
+                        "source": "skills_script",
+                    }
+                    self._cache.set(cache_key, result)
+                    return result
+            
+            # 脚本成功运行但没有 JSON 文件（可能只生成了图表）
+            # 返回空列表，让其他 adapter 处理
+            logger.info(f"[SkillsScriptAdapter] No JSON output, checking for PNG charts")
+            png_files = list(output_dir.glob("*.png"))
+            if png_files:
+                logger.info(f"[SkillsScriptAdapter] Generated {len(png_files)} chart files")
             
             return []
             
@@ -259,12 +288,50 @@ class CompositeAdapter(ElectricityDataAdapter):
         province: str,
         metric: str,
         time_range: str,
-    ) -> list:
+    ):
         for adapter in self.adapters:
             try:
-                data = await adapter.fetch(province, metric, time_range)
-                if data:
+                # 检查是否是 async 方法
+                if hasattr(adapter.fetch, '__func__'):
+                    # sync 方法，直接调用
+                    data = adapter.fetch(province, metric, time_range)
+                else:
+                    # async 方法
+                    data = await adapter.fetch(province, metric, time_range)
+                
+                # 处理返回值（dict 或 list）
+                if isinstance(data, dict):
+                    data_list = data.get("data", [])
+                    if data_list:
+                        return data  # 返回完整 dict
+                elif isinstance(data, list) and data:
                     return data
+                    
+            except Exception as e:
+                logger.warning(f"Adapter {type(adapter).__name__} failed: {e}")
+                continue
+        
+        return []
+    
+    def fetch_sync(
+        self,
+        province: str,
+        metric: str,
+        time_range: str,
+    ):
+        """同步版本，遍历所有 adapter 直到获取数据"""
+        for adapter in self.adapters:
+            try:
+                data = adapter.fetch_sync(province, metric, time_range)
+                
+                # 处理返回值（dict 或 list）
+                if isinstance(data, dict):
+                    data_list = data.get("data", [])
+                    if data_list:
+                        return data  # 返回完整 dict
+                elif isinstance(data, list) and data:
+                    return data
+                    
             except Exception as e:
                 logger.warning(f"Adapter {type(adapter).__name__} failed: {e}")
                 continue
@@ -275,16 +342,37 @@ class CompositeAdapter(ElectricityDataAdapter):
 def create_data_adapter(settings) -> ElectricityDataAdapter:
     adapters = []
     
+    # Skills 脚本优先（完整功能：数据+图表+统计）
     skills_path = getattr(settings, 'electricity_skills_path', None)
     if skills_path:
         adapters.append(SkillsScriptAdapter(skills_path=skills_path))
     elif SKILLS_PATH.exists():
         adapters.append(SkillsScriptAdapter())
     
+    # DirectDBAdapter 作为快速备用（当 Skills 失败时）
+    db_host = getattr(settings, 'electricity_db_host', None)
+    db_port = getattr(settings, 'electricity_db_port', 3306)
+    db_user = getattr(settings, 'electricity_db_user', None)
+    db_password = getattr(settings, 'electricity_db_password', None)
+    
+    if db_host and db_user and db_password:
+        from app.agent.adapters.direct_db_adapter import DirectDBAdapter
+        available_db = getattr(settings, 'base_db_name', 'electricity_trading_analytics_shaanxi')
+        adapters.append(DirectDBAdapter(
+            host=db_host,
+            port=db_port,
+            user=db_user,
+            password=db_password,
+            available_db=available_db,
+        ))
+        logger.info(f"[DataAdapter] DirectDBAdapter created for {available_db}")
+    
+    # API 作为备用
     skills_url = getattr(settings, 'electricity_skills_url', None)
     if skills_url:
         adapters.append(SkillsAPIAdapter(base_url=skills_url))
     
+    # 本地文件作为备用
     data_dir = getattr(settings, 'electricity_data_dir', None)
     if data_dir:
         adapters.append(LocalDataAdapter(data_dir=data_dir))

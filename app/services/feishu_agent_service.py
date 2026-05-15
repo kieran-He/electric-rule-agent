@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Callable
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import PatchMessageRequest, PatchMessageRequestBody, ReplyMessageRequest, ReplyMessageRequestBody
+from lark_oapi.api.im.v1 import CreateImageRequest, CreateImageRequestBody
 from sqlalchemy.orm import Session
 
 from app.agent.agent_singleton import agent_singleton
@@ -97,6 +100,45 @@ class FeishuAgentService:
     def _format_reply(self, response: AgentResponse) -> str:
         return response.answer
     
+    def _upload_image(self, image_path: str) -> str | None:
+        """Upload image to Feishu and return image_key."""
+        if not image_path or not Path(image_path).exists():
+            logger.warning(f"Image path does not exist: {image_path}")
+            return None
+        
+        try:
+            with open(image_path, 'rb') as f:
+                request = CreateImageRequest.builder() \
+                    .request_body(CreateImageRequestBody.builder()
+                                  .image_type("message")
+                                  .image(f)
+                                  .build()) \
+                    .build()
+                
+                response = self.client.im.v1.image.create(request)
+                
+                if response.success() and response.data:
+                    image_key = response.data.image_key
+                    logger.info(f"Image uploaded successfully: {image_path} -> {image_key}")
+                    return image_key
+                else:
+                    logger.error(f"Image upload failed: {response.code} - {response.msg}")
+                    return None
+                    
+        except Exception as e:
+            logger.exception(f"Error uploading image {image_path}: {e}")
+            return None
+    
+    def _upload_charts(self, chart_paths: list) -> list:
+        """Upload multiple chart images and return list of image_keys."""
+        image_keys = []
+        for path in chart_paths:
+            if path:
+                key = self._upload_image(path)
+                if key:
+                    image_keys.append(key)
+        return image_keys
+    
     def handle_message(self, data: lark.im.v1.P2ImMessageReceiveV1) -> None:
         if not data.event or not data.event.message:
             return
@@ -137,6 +179,14 @@ class FeishuAgentService:
         try:
             response = self._process_with_agent(text, session_id, trace_id)
             reply_text = self._format_reply(response)
+            image_keys = []
+            
+            logger.info(f"[FeishuService] chart_paths from response: {response.chart_paths}")
+            
+            if response.chart_paths:
+                logger.info(f"Uploading {len(response.chart_paths)} chart images...")
+                image_keys = self._upload_charts(response.chart_paths)
+                logger.info(f"[FeishuService] Uploaded image_keys: {image_keys}")
             
             self.conversation_service.append_turn(
                 session_id=session_id,
@@ -147,9 +197,10 @@ class FeishuAgentService:
         except Exception as e:
             logger.exception(f"Error processing query: {e}")
             reply_text = "抱歉，处理您的请求时出现错误，请稍后重试。"
+            image_keys = []
         
         if reply_msg_id:
-            self._update_message(reply_msg_id, reply_text)
+            self._update_message(reply_msg_id, reply_text, image_keys)
         else:
             self._reply_message(message_id, reply_text)
     
@@ -162,6 +213,13 @@ class FeishuAgentService:
         
         with self.session_factory() as db:
             trace_service = TraceService(self.session_factory)
+            
+            if not agent_singleton.is_loaded():
+                logger.warning("Agent not preloaded, attempting preload...")
+                from app.agent.agent_singleton import preload_agent
+                if not preload_agent(self.settings):
+                    raise RuntimeError("Agent not preloaded and preload failed. Check logs for details.")
+            
             agent = agent_singleton.get_agent(db)
             
             request = AgentRequest(
@@ -207,8 +265,8 @@ class FeishuAgentService:
             logger.exception(f"Error sending reply: {e}")
             return None
     
-    def _update_message(self, message_id: str, text: str) -> bool:
-        card_content = self._md_converter.convert_to_interactive(text)
+    def _update_message(self, message_id: str, text: str, image_keys: list = None) -> bool:
+        card_content = self._md_converter.convert_to_interactive(text, image_keys or [])
         
         request = PatchMessageRequest.builder() \
             .message_id(message_id) \
