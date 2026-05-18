@@ -12,7 +12,16 @@
 - 企业合规政策解读
 - 飞书机器人智能客服
 
-**技术栈**：FastAPI + LangChain + ChromaDB + GLM-4 / BGE Embedding
+**技术栈**：FastAPI + LangChain + LangGraph + ChromaDB + MiniMax GLM / BGE Embedding
+
+**核心特性**：
+- ReAct Agent 多工具协作（政策检索、网络搜索、数据查询）
+- WebSocket 实时消息处理（飞书机器人）
+- 混合检索 + 智能重排序
+- 多轮对话 + 指代消解
+- 会话状态持久化（LangGraph Checkpoint）
+- 早期终止优化（信息充足检测）
+- RAGAS 自动评估
 
 ## 系统架构
 
@@ -21,52 +30,455 @@
 ```mermaid
 graph TB
     subgraph "用户接入层"
-        A1[飞书 Webhook]
+        A1[飞书 WebSocket]
         A2[HTTP API]
-        A3[内部查询接口]
     end
     
-    subgraph "查询处理层"
-        B1[Query Rewrite<br/>LLM查询优化]
-        B2[Query Expansion<br/>语义/同义词扩展]
-        B3[省份检测<br/>自动]
+    subgraph "Agent层"
+        B1[ReAct Agent<br/>多轮迭代决策]
+        B2[Tool Registry<br/>工具注册中心]
     end
     
-    subgraph "混合检索层"
-        C1[Vector检索<br/>ChromaDB]
-        C2[BM25检索<br/>关键词匹配]
-        C3[Reranker<br/>BGE重排序]
+    subgraph "工具层"
+        C1[retrieve_policy<br/>政策检索]
+        C2[web_search<br/>网络搜索]
+        C3[fetch_electricity_data<br/>数据查询]
+        C4[analyze_statistics<br/>统计分析]
     end
     
-    subgraph "生成层"
-        D1[LLM Generation<br/>MINIMAX-M2.7]
-        D2[答案生成]
+    subgraph "检索层"
+        D1[Query Rewrite<br/>LLM查询优化]
+        D2[Query Expansion<br/>语义扩展]
+        D3[Vector检索<br/>ChromaDB]
+        D4[BM25检索<br/>关键词匹配]
+        D5[Reranker<br/>BGE重排序]
     end
     
     subgraph "数据层"
         E1[data/docs/<br/>原始文档]
         E2[data/chroma/<br/>向量数据库]
         E3[data/cache/<br/>BM25索引]
-        E4[data/dict/<br/>字典数据]
+        E4[SQLite/PostgreSQL<br/>会话&指标]
     end
     
     A1 --> B1
     A2 --> B1
-    A3 --> B1
     B1 --> B2
-    B2 --> B3
-    B3 --> C1
-    B3 --> C2
-    C1 --> C3
-    C2 --> C3
-    C3 --> D1
+    B2 --> C1
+    B2 --> C2
+    B2 --> C3
+    B2 --> C4
+    C1 --> D1
     D1 --> D2
-    
-    E1 --> C1
-    E2 --> C1
-    E3 --> C2
-    E4 --> B2
+    D2 --> D3
+    D2 --> D4
+    D3 --> D5
+    D4 --> D5
+    E1 --> D3
+    E2 --> D3
+    E3 --> D4
+    E4 --> B1
 ```
+
+### 核心组件说明
+
+| 组件 | 功能 | 模型/技术 |
+|------|------|-----------|
+| ReAct Agent | 多轮迭代决策，工具调用 | LangGraph + MiniMax |
+| Query Rewrite | LLM驱动查询优化 | MiniMax-M2.7 |
+| Query Expansion | 语义/同义词扩展 | synonyms.json + semantic |
+| Hybrid Retrieval | Vector + BM25 双路召回 | ChromaDB + BM25 |
+| Reranker | 精排序 | BAAI/bge-reranker-base |
+| LLM Generation | 答案生成 | MiniMax-M2.7 |
+| Checkpointer | 会话状态持久化 | SQLite/PostgreSQL |
+
+---
+
+## 接口总览
+
+本系统提供 **23 个接口**：HTTP API 21 个 + 飞书 WebSocket 2 个。
+
+### 接口分类
+
+| 类别 | 数量 | 说明 |
+|------|------|------|
+| Agent接口 | 1 | ReAct Agent 多轮对话 |
+| 查询接口 | 2 | 混合检索查询 |
+| 反馈接口 | 3 | 用户反馈管理 |
+| 指标接口 | 7 | 性能指标监控 |
+| 评估接口 | 4 | RAGAS评估 |
+| 导入接口 | 1 | 文档导入 |
+| 管理接口 | 3 | 系统管理 |
+| 飞书接口 | 2 | WebSocket消息处理 |
+
+---
+
+## HTTP API 接口详细说明
+
+### Agent 接口 (与飞书逻辑完全一致)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/agent/chat` | POST | ReAct Agent对话，支持多轮、工具调用、早期终止 |
+
+**请求示例**：
+```json
+{
+  "query": "山东市场对中长期市场购买电量有什么要求",
+  "session_id": "user_123",
+  "province_codes": ["SD"],
+  "history": ["Q: 陕西规则是什么?", "A: ..."]
+}
+```
+
+**响应示例**：
+```json
+{
+  "answer": "根据《山东省电力市场交易规则》...",
+  "intent": "clause_qa",
+  "tool_calls": ["retrieve_policy", "web_search"],
+  "citations": [{"doc_name": "山东规则.pdf", "excerpt": "..."}],
+  "confidence": 0.85,
+  "trace_id": "trace_abc123",
+  "detected_provinces": "SD",
+  "chart_paths": [],
+  "metadata": {"iterations": 2, "elapsed_seconds": 45}
+}
+```
+
+### 查询接口 (单次混合检索)
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/query` | POST | 混合检索查询，不走Agent循环 |
+| `/query/trace/{trace_id}` | GET | 获取查询追踪记录 |
+
+### 反馈接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/feedback` | POST | 提交用户反馈（评分、类型、建议） |
+| `/feedback/trace/{trace_id}` | GET | 获取某trace的所有反馈 |
+| `/feedback/stats` | GET | 获取反馈统计汇总 |
+
+### 指标接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/metrics` | GET | 实时性能摘要 |
+| `/metrics/health` | GET | 服务健康状态 |
+| `/metrics/history` | GET | 历史性能统计 |
+| `/metrics/errors` | GET | 错误类型统计 |
+| `/metrics/province` | GET | 省份查询分布 |
+| `/metrics/recent` | GET | 最近查询明细 |
+| `/metrics/ragas` | GET | RAGAS指标趋势 |
+
+### 评估接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/evaluation/recent` | GET | 最近评估记录 |
+| `/evaluation/summary` | GET | 评估指标汇总 |
+| `/evaluation/run` | POST | 手动触发批量评估 |
+| `/evaluation/pending` | GET | 待评估trace列表 |
+
+### 导入接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/ingest/documents` | POST | 导入文档到向量库 |
+
+### 管理接口
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/admin/rebuild-index` | POST | 重建向量索引 |
+| `/admin/documents` | GET | 获取已导入文档列表 |
+| `/admin/health` | GET | 系统健康检查 |
+
+---
+
+## 飞书机器人接口
+
+### 接入方式：WebSocket 长连接
+
+飞书机器人通过 WebSocket 实时接收事件，不使用 HTTP API。
+
+| 事件类型 | 处理函数 | 说明 |
+|----------|---------|------|
+| `im.message.receive_v1` | `handle_message()` | 消息接收 |
+| `card.action.trigger` | `handle_card_action()` | 卡片按钮点击 |
+
+### 飞书处理流程
+
+```
+飞书用户消息 → WebSocket → FeishuAgentService
+                              ↓
+                    检查首次对话 → 推送示例问题卡片
+                              ↓
+                    回复"正在思考中..."
+                              ↓
+                    ElectricityAgentGraph.chat()
+                              ↓
+                    ConversationService 保存会话
+                              ↓
+                    lark.Client API 回复飞书
+```
+
+### 飞书功能特性
+
+| 功能 | 说明 |
+|------|------|
+| 首次对话提示 | 自动推送示例问题卡片 |
+| 问题按钮 | 点击直接发送问题到Agent |
+| 刷新换一批 | 重新获取随机示例问题 |
+| 会话隔离 | 私聊/群聊独立session_id |
+| 多轮对话 | 支持上下文指代消解 |
+
+---
+
+## 二次开发指南
+
+### 1. 添加新工具
+
+在 `app/agent/graph/tools/` 下创建工具文件：
+
+```python
+# app/agent/graph/tools/my_tool.py
+from langchain_core.tools import tool
+
+@tool
+def my_new_tool(query: str, param: str) -> str:
+    """工具描述，LLM会根据此描述决定是否调用"""
+    # 实现工具逻辑
+    return "工具执行结果"
+```
+
+在 `tool_registry.py` 中注册：
+
+```python
+# app/agent/graph/tools/tool_registry.py
+ALL_TOOLS = {
+    "retrieve_policy": retrieve_policy,
+    "web_search": web_search,
+    "my_new_tool": my_new_tool,  # 新增
+}
+```
+
+### 2. 修改Agent行为
+
+Agent核心逻辑在 `app/agent/graph/electricity_agent_graph.py`：
+
+| 配置项 | 文件位置 | 说明 |
+|--------|---------|------|
+| 超时时间 | `agent_tool_timeout` | Agent迭代超时限制 |
+| 最大迭代 | `agent_max_iterations` | ReAct循环最大次数 |
+| 系统提示词 | `react_agent_node.py` | LLM决策指令 |
+
+### 3. 修改检索参数
+
+检索配置在 `app/config.py`：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `HYBRID_VECTOR_TOP_K` | 20 | 向量检索候选数 |
+| `HYBRID_BM25_TOP_K` | 20 | BM25检索候选数 |
+| `RERANK_TOP_K` | 12 | 重排序返回数 |
+| `QUERY_REWRITE_ENABLED` | true | 启用查询重写 |
+| `QUERY_EXPANSION_MAX` | 3 | 最大查询扩展数 |
+
+### 4. 添加新省份
+
+```bash
+# 1. 创建省份目录
+mkdir data/docs/GD
+
+# 2. 放入政策文档
+# data/docs/GD/*.pdf
+
+# 3. 离线导入
+python tools/offline_ingest.py --kb-scope province --province-code GD
+
+# 4. 更新配置
+# app/config.py: PROVINCE_DEFAULTS = ["SN", "SD", "GD"]
+```
+
+### 5. 自定义飞书卡片
+
+飞书卡片构建在 `app/utils/feishu_card_builder.py`：
+
+```python
+class FeishuCardBuilder:
+    def build_custom_card(self, data: dict) -> dict:
+        """构建自定义卡片"""
+        return {
+            "schema": "2.0",
+            "header": {...},
+            "body": {"elements": [...]}
+        }
+```
+
+### 6. 扩展评估指标
+
+评估逻辑在 `evaluation/ragas_evaluator.py`，可添加自定义指标：
+
+```python
+# 添加新评估维度
+custom_metrics = {
+    "policy_coverage": PolicyCoverageMetric(),
+    "citation_accuracy": CitationAccuracyMetric(),
+}
+```
+
+---
+
+## 配置参数速查
+
+### Agent配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `AGENT_TOOL_TIMEOUT` | 60 | Agent迭代超时(秒) |
+| `AGENT_MAX_ITERATIONS` | 5 | 最大迭代次数 |
+| `TOOLS_ENABLED` | retrieve_policy,web_search,... | 启用的工具列表 |
+
+### 检索配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `EMBEDDING_MODEL` | BAAI/bge-small-zh-v1.5 | 向量嵌入模型 |
+| `RERANKER_MODEL` | BAAI/bge-reranker-base | 重排序模型 |
+| `HYBRID_VECTOR_TOP_K` | 20 | 向量检索候选数 |
+| `HYBRID_BM25_TOP_K` | 20 | BM25检索候选数 |
+| `RERANK_TOP_K` | 12 | 重排序返回数 |
+| `RRF_K` | 60 | RRF融合参数 |
+
+### LLM配置
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `LLM_MODEL` | MiniMax模型 | 生成模型 |
+| `LLM_TIMEOUT_SECONDS` | 120 | LLM调用超时 |
+| `QUERY_REWRITE_ENABLED` | true | 查询重写 |
+| `QUERY_EXPANSION_METHOD` | semantic | 扩展方法 |
+
+### 飞书配置
+
+| 参数 | 说明 |
+|------|------|
+| `FEISHU_APP_ID` | 飞书应用ID |
+| `FEISHU_APP_SECRET` | 飞书应用密钥 |
+| `FEISHU_MAX_WORKERS` | 并发处理线程数 |
+
+---
+
+## 常见问题
+
+**Q: Agent超时无答案？**
+A: 检查 `AGENT_TOOL_TIMEOUT` 配置，增大超时时间或优化检索效率。
+
+**Q: 飞书消息无响应？**
+A: 检查 `FEISHU_APP_ID/SECRET` 配置，确认WebSocket连接成功。
+
+**Q: 如何跳过Agent直接检索？**
+A: 使用 `/query` 接口而非 `/agent/chat`。
+
+**Q: 如何禁用web_search？**
+A: 设置 `TOOLS_ENABLED=retrieve_policy` 或 `WEB_SEARCH_ENABLED=false`。
+
+**Q: 如何添加自定义停词/同义词？**
+A: 编辑 `data/dict/stopwords.txt` 和 `data/dict/synonyms.json`。
+
+---
+
+## 目录结构
+
+```text
+firstmodel/
+├── app/                        # 核心应用
+│   ├── api/                    # API路由 (21个接口)
+│   │   ├── routes_agent.py     # Agent接口
+│   │   ├── routes_query.py     # 查询接口
+│   │   ├── routes_feedback.py  # 反馈接口
+│   │   ├── routes_metrics.py   # 指标接口
+│   │   ├── routes_evaluation.py # 评估接口
+│   │   ├── routes_ingest.py    # 导入接口
+│   │   └── routes_admin.py     # 管理接口
+│   ├── agent/                  # Agent模块
+│   │   ├── graph/              # LangGraph图定义
+│   │   │   ├── electricity_agent_graph.py  # Agent主图
+│   │   │   ├── nodes/          # 节点实现
+│   │   │   │   ├── react_agent_node.py     # ReAct决策
+│   │   │   │   └── tool_executor_node.py   # 工具执行
+│   │   │   ├── tools/          # 工具定义
+│   │   │   └── checkpointer/   # 会话持久化
+│   │   └── agent_singleton.py  # Agent单例
+│   ├── core/                   # 核心模块
+│   ├── db/                     # 数据库模型
+│   ├── langchain/              # LangChain组件
+│   │   ├── hybrid_retriever.py # 混合检索器
+│   │   ├── query_rewriter.py   # 查询重写
+│   │   └ query_expander.py     # 查询扩展
+│   │   └ orchestrator_hybrid.py # 编排器
+│   ├── schemas/                # 数据模型
+│   ├── services/               # 业务服务
+│   │   ├── feishu_agent_service.py  # 飞书服务
+│   │   ├── benchmark_service.py     # 示例问题服务
+│   │   ├── conversation_service.py  # 会话管理
+│   │   └ orchestrator_singleton.py  # 检索编排单例
+│   └── utils/                  # 工具函数
+│       ├── feishu_card_builder.py   # 飞书卡片构建
+│       └── markdown_to_feishu.py     # Markdown转换
+├── evaluation/                 # 评估系统
+│   ├── benchmark.json          # 测试基准问题(100条)
+│   └ run_eval.py               # CLI评估入口
+│   └ ragas_evaluator.py        # RAGAS评估器
+├── dataprocess/                # 数据处理管道
+├── data/                       # 数据存储
+│   ├── docs/                   # 原始文档(按省份)
+│   ├── chroma/                 # 向量数据库
+│   ├── cache/                  # BM25索引缓存
+│   └ dict/                     # 字典数据
+│   └ processed/                # 处理后数据
+├── tests/                      # 测试文件
+├── tools/                      # 工具脚本
+├── feishu_bot.py               # 飞书机器人入口
+├── main.py                     # HTTP API入口
+├── config.py                   # 配置管理
+└── README.md                   # 本文档
+```
+
+---
+
+## 启动服务
+
+### HTTP API 服务
+
+```bash
+# 开发模式
+uvicorn app.main:app --reload --port 8000
+
+# 生产模式
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# API文档
+# http://localhost:8000/docs
+```
+
+### 飞书机器人服务
+
+```bash
+# WebSocket模式
+python -m app.feishu_bot
+```
+
+---
+
+## 更多文档
+
+- [评估系统说明](evaluation/README.md)
+- [数据处理流程](dataprocess/README.md)
+- [API接口文档](http://localhost:8000/docs)
 
 ### 处理流程图
 
