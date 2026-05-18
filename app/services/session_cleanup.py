@@ -37,10 +37,12 @@ class SessionCleanupTask:
             time.sleep(self.interval_minutes * 60)
     
     def _cleanup(self):
+        from app.config import settings
         from app.db.repositories.conversation_repo import ConversationRepository
         from app.db.repositories.conversation_turn_repo import ConversationTurnRepository
         from app.db.repositories.trace_repo import TraceRepository
         from app.db.session import SessionLocal
+        from app.services.checkpoint_cleanup_service import CheckpointCleanupService
 
         with SessionLocal() as db:
             state_repo = ConversationRepository(db)
@@ -54,6 +56,10 @@ class SessionCleanupTask:
 
             db.commit()
             logger.info(f"Expired sessions and turns cleared (ttl={self.ttl_minutes}min, traces={trace_count})")
+        
+        checkpoint_service = CheckpointCleanupService(SessionLocal)
+        checkpoint_deleted = checkpoint_service.cleanup_old_checkpoints(days=settings.checkpoint_retention_days)
+        logger.info(f"Expired checkpoints cleared (count={checkpoint_deleted})")
 
 
 cleanup_task = SessionCleanupTask()

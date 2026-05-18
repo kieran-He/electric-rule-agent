@@ -162,7 +162,7 @@ class TestToolRegistry:
     def test_get_all_tools(self):
         tools = get_all_tools()
         
-        assert len(tools) == 3
+        assert len(tools) == 4
         assert all(hasattr(t, 'name') for t in tools)
     
     def test_get_tools_by_names(self):
@@ -183,11 +183,12 @@ class TestToolRegistry:
     def test_get_tools_for_agent_none(self):
         tools = get_tools_for_agent(None)
         
-        assert len(tools) == 3
+        assert len(tools) == 4
     
     def test_tool_exists(self):
         assert tool_exists("retrieve_policy")
         assert tool_exists("fetch_electricity_data")
+        assert tool_exists("web_search")
         assert not tool_exists("unknown_tool")
     
     def test_all_tools_dict(self):

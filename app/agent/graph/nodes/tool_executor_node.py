@@ -50,7 +50,9 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
         
         try:
             if tool_name == "retrieve_policy":
-                query = tool_args.get("query", state.get("query", ""))
+                # 强制使用原始问题，避免LLM生成的查询偏离
+                # orchestrator内部会进行query重写，无需LLM预处理
+                query = state.get("query", "")
                 provinces = tool_args.get("provinces", state.get("provinces", ["SN"]))
                 output = tool_func.invoke({"query": query, "provinces": provinces})
                 
@@ -73,6 +75,12 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                     "data": data,
                     "analysis_type": analysis_type,
                 })
+                
+            elif tool_name == "web_search":
+                # 强制使用原始问题，避免LLM生成的搜索词偏离
+                query = state.get("query", "")
+                provinces = tool_args.get("provinces", state.get("provinces", ["SN"]))
+                output = tool_func.invoke({"query": query, "provinces": provinces})
                 
             else:
                 output = tool_func.invoke(tool_args)

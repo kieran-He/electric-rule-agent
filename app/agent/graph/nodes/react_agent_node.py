@@ -13,25 +13,31 @@ logger = logging.getLogger(__name__)
 REACT_SYSTEM_PROMPT = """你是一个电力市场分析助手，能够使用工具来回答用户问题。
 
 可用工具:
-1. retrieve_policy: 检索电力市场政策文档和法规
+1. retrieve_policy: 检索电力市场政策文档和法规（知识库）
 2. fetch_electricity_data: 获取电力数据（负荷、发电量、电价等）
 3. analyze_statistics: 对数据进行统计分析
+4. web_search: 网络搜索，获取最新新闻、政策动态
 
 数据可用性:
 - fetch_electricity_data 目前只支持陕西省(SN)的数据查询
 - 如果用户询问其他省份的数据，请告知当前只支持陕西数据
 
+工具调用规则（重要）:
+- retrieve_policy 和 web_search：只需要调用工具，无需提供query参数（系统会自动使用用户原始问题）
+- provinces参数：如果问题明确提到省份，提供省份代码（如["SN", "SD"]）；否则可省略，系统会自动推断
+- fetch_electricity_data：需要提供 metric 参数（load/generation/price/new_energy）
+
 工作流程:
 1. 分析用户问题，确定需要使用哪些工具
-2. 按顺序调用必要的工具获取信息
+2. 直接调用工具获取信息（无需自己生成查询内容）
 3. 综合工具结果，生成完整回答
 
 注意事项:
-- 如果问题涉及政策法规，使用 retrieve_policy
-- 如果问题涉及陕西电力数据，使用 fetch_electricity_data（province参数设为"SN"）
-- 如果需要对数据进行分析，使用 analyze_statistics
-- 可以组合使用多个工具
-- 当获取到足够信息后，直接给出答案，不要再调用工具"""
+- 用户提到"最新"、"最近"、"新闻"等关键词 → 使用 web_search
+- 政策法规问题 → 使用 retrieve_policy
+- 数据查询 → 使用 fetch_electricity_data
+- 数据分析 → 使用 analyze_statistics
+- 当获取到足够信息后，直接给出答案"""
 
 
 def _build_messages(state: ElectricityAgentState) -> List:
@@ -78,6 +84,18 @@ def _build_messages(state: ElectricityAgentState) -> List:
                     tool_call_id=tool_call_id,
                 )
             )
+        
+        # 重要：每轮都提醒LLM原始问题，防止偏离
+        query = state["query"]
+        provinces = state.get("provinces", ["SN"])
+        province_str = ", ".join(provinces)
+        reminder = f"""
+
+【重要提醒】用户原始问题是: {query}
+请基于上述工具结果，针对原始问题进行分析。如果结果不足以回答原始问题，可以继续调用工具；如果已经足够，请直接生成答案。"""
+        messages.append(HumanMessage(content=reminder))
+    
+    # 首轮添加完整用户问题
     
     if not state.get("messages") or state["iteration_count"] == 0:
         query = state["query"]

@@ -90,7 +90,7 @@ class Settings:
     agent_max_iterations: int = int(_env("AGENT_MAX_ITERATIONS", "5"))
     agent_framework: str = _env("AGENT_FRAMEWORK", "langgraph")
     agent_tool_timeout: int = int(_env("AGENT_TOOL_TIMEOUT", "60"))
-    tools_enabled: str = _env("TOOLS_ENABLED", "retrieve_policy,fetch_electricity_data,analyze_statistics")
+    tools_enabled: str = _env("TOOLS_ENABLED", "retrieve_policy,fetch_electricity_data,analyze_statistics,web_search")
     electricity_skills_url: str = _env("ELECTRICITY_SKILLS_URL", "")
     electricity_skills_path: str = _env("ELECTRICITY_SKILLS_PATH", "./data/skills/agentic-data-analysis")
     electricity_data_dir: str = _env("ELECTRICITY_DATA_DIR", "")
@@ -108,6 +108,7 @@ class Settings:
     intent_llm_threshold: float = float(_env("INTENT_LLM_THRESHOLD", "0.70"))
     data_cache_ttl: int = int(_env("DATA_CACHE_TTL", "3600"))
     data_cache_max_size: int = int(_env("DATA_CACHE_MAX_SIZE", "1000"))
+    checkpoint_retention_days: int = int(_env("CHECKPOINT_RETENTION_DAYS", "7"))
 
     @property
     def is_sqlite(self) -> bool:

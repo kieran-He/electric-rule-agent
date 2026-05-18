@@ -17,6 +17,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, futu
 
 
 def init_db() -> None:
+    import logging
     from app.db.models import (  # noqa: F401
         clause,
         conversation_state,
@@ -24,6 +25,7 @@ def init_db() -> None:
         document,
         evaluation_record,
         evaluation_session,
+        langgraph_checkpoint,
         metrics_record,
         processed_message,
         rule_tag,
@@ -31,6 +33,8 @@ def init_db() -> None:
         trace_record,
         user_feedback,
     )
+
+    logger = logging.getLogger(__name__)
 
     with engine.connect() as conn:
         try:
@@ -40,3 +44,10 @@ def init_db() -> None:
             conn.commit()
 
     Base.metadata.create_all(bind=engine)
+    
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("SELECT id FROM langgraph_checkpoint LIMIT 1"))
+            logger.info("langgraph_checkpoint table verified")
+        except Exception:
+            logger.warning("langgraph_checkpoint table will be created on first access")

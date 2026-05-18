@@ -6,6 +6,7 @@ from langchain_core.tools import StructuredTool
 from app.agent.graph.tools.policy_tool import retrieve_policy
 from app.agent.graph.tools.data_tool import fetch_electricity_data
 from app.agent.graph.tools.analysis_tool import analyze_statistics
+from app.agent.graph.tools.web_tool import web_search
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +14,7 @@ ALL_TOOLS = {
     "retrieve_policy": retrieve_policy,
     "fetch_electricity_data": fetch_electricity_data,
     "analyze_statistics": analyze_statistics,
+    "web_search": web_search,
 }
 
 TOOL_METADATA = {
@@ -30,6 +32,11 @@ TOOL_METADATA = {
         "name": "analyze_statistics",
         "description": "对电力数据进行统计分析",
         "category": "analysis",
+    },
+    "web_search": {
+        "name": "web_search",
+        "description": "网络搜索工具，用于获取最新新闻、政策动态、实时行情等时效性信息",
+        "category": "knowledge",
     },
 }
 
@@ -90,7 +97,7 @@ def get_tool_info() -> Dict[str, Any]:
         "tools": TOOL_METADATA,
         "count": len(ALL_TOOLS),
         "categories": {
-            "knowledge": ["retrieve_policy"],
+            "knowledge": ["retrieve_policy", "web_search"],
             "data": ["fetch_electricity_data"],
             "analysis": ["analyze_statistics"],
         },

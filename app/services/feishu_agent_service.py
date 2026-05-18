@@ -49,8 +49,22 @@ class FeishuAgentService:
         self._processed_ttl = 86400
         self._md_converter = MarkdownToFeishuConverter()
     
-    def _get_session_id(self, open_id: str) -> str:
-        return f"feishu:{open_id}"
+    def _get_session_id(self, open_id: str, chat_id: str, chat_type: str) -> str:
+        """
+        Generate session_id based on chat_type (hybrid mode):
+        - p2p (private chat): user-isolated "feishu:user:{open_id}"
+        - group (group chat): group-isolated "feishu:group:{chat_id}"
+        
+        In hybrid mode:
+        - Group chat: all users share one conversation history (session_id = chat_id)
+        - Private chat: each user has independent history (session_id = open_id)
+        """
+        if chat_type == "p2p":
+            return f"feishu:user:{open_id}"
+        elif chat_type == "group":
+            return f"feishu:group:{chat_id}"
+        else:
+            return f"feishu:{open_id}"
     
     def _get_event_id(self, data: lark.im.v1.P2ImMessageReceiveV1) -> str:
         if data.header and data.header.event_id:
@@ -145,12 +159,14 @@ class FeishuAgentService:
         
         message = data.event.message
         message_id = message.message_id
+        chat_id = message.chat_id
+        chat_type = message.chat_type
         
         open_id = ""
         if data.event.sender and data.event.sender.sender_id:
             open_id = data.event.sender.sender_id.open_id or ""
         
-        session_id = self._get_session_id(open_id)
+        session_id = self._get_session_id(open_id, chat_id, chat_type)
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
         
         set_trace_id(trace_id)
@@ -165,13 +181,13 @@ class FeishuAgentService:
             logger.debug(f"Duplicate event {event_id}, skipping")
             return
         
-        chat_type = message.chat_type
         text = self._extract_message_text(message)
         
         if not text:
             logger.debug("Empty message text, skipping")
             return
         
+        logger.info(f"Session created: {session_id} (chat_type={chat_type}, open_id={open_id}, chat_id={chat_id})")
         logger.info(f"Received message from {open_id} in {chat_type}: {text[:100]}")
         
         reply_msg_id = self._reply_message(message_id, "正在思考中，请稍候...")

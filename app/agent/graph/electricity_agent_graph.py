@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import contextvars
 import logging
 import uuid
 import time
-from typing import Dict, List, Any, TYPE_CHECKING
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
@@ -26,14 +27,21 @@ if TYPE_CHECKING:
     from app.langchain.llm import MiniMaxLLMWrapper
     from app.agent.adapters.electricity_data_adapter import ElectricityDataAdapter
     from app.config import Settings
+    from app.core.web_search import WebSearchClient
 
 logger = logging.getLogger(__name__)
 
-_current_instance: Optional["ElectricityAgentGraph"] = None
+_current_instance: contextvars.ContextVar[Optional["ElectricityAgentGraph"]] = (
+    contextvars.ContextVar("_current_instance", default=None)
+)
 
 
 def _get_current_instance() -> Optional["ElectricityAgentGraph"]:
-    return _current_instance
+    return _current_instance.get()
+
+
+def _set_current_instance(instance: "ElectricityAgentGraph") -> None:
+    _current_instance.set(instance)
 
 
 def _should_continue(state: ElectricityAgentState) -> str:
@@ -76,13 +84,14 @@ class ElectricityAgentGraph:
         orchestrator: "HybridQAOrchestrator",
         data_adapter: "ElectricityDataAdapter",
         settings: "Settings",
+        web_search_client: "WebSearchClient" = None,
         checkpointer=None,
     ):
-        global _current_instance
         self.llm_wrapper = llm_wrapper
         self.orchestrator = orchestrator
         self.data_adapter = data_adapter
         self.settings = settings
+        self.web_search_client = web_search_client
         
         self.use_react = getattr(settings, 'agent_use_react', True)
         self.max_iterations = getattr(settings, 'agent_max_iterations', 5)
@@ -97,13 +106,7 @@ class ElectricityAgentGraph:
         self.checkpointer = checkpointer or MemorySaver()
         self.app = self._graph.compile(checkpointer=self.checkpointer)
         
-        _current_instance = self
-        
         logger.info(f"ElectricityAgentGraph initialized (react={self.use_react}, max_iter={self.max_iterations})")
-    
-    @staticmethod
-    def _get_current_instance():
-        return _current_instance
     
     def _build_graph(self) -> StateGraph:
         workflow = StateGraph(ElectricityAgentState)
@@ -192,6 +195,8 @@ class ElectricityAgentGraph:
         history: List[Dict] = None,
         context: Dict[str, Any] = None,
     ) -> Dict:
+        _set_current_instance(self)
+        
         initial_state = create_initial_state(
             query=query,
             provinces=provinces,

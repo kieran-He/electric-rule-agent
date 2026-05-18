@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from app.agent.power_policy_agent import PowerPolicyAgent
 from app.agent.graph.electricity_agent_graph import ElectricityAgentGraph
 from app.agent.adapters.electricity_data_adapter import create_data_adapter
+from app.agent.graph.checkpointer.db_checkpointer import DbCheckpointer
+from app.db.models.langgraph_checkpoint import LangGraphCheckpoint
 from app.langchain.llm import MiniMaxLLMWrapper
 from app.core.web_search import create_web_search_client
 from app.services.orchestrator_singleton import orchestrator_singleton
+from app.db.session import SessionLocal
 
 if TYPE_CHECKING:
     from app.config import Settings
@@ -57,14 +60,25 @@ class AgentSingleton:
                 
                 if framework == "langgraph":
                     data_adapter = create_data_adapter(settings)
+                    web_search_client = create_web_search_client(settings)
+                    checkpointer = DbCheckpointer(SessionLocal)
+                    
+                    try:
+                        with SessionLocal() as db:
+                            db.query(LangGraphCheckpoint).limit(1).first()
+                        logger.info("DbCheckpointer database connection verified")
+                    except Exception as e:
+                        logger.warning(f"DbCheckpointer connection test failed: {e}")
                     
                     self._agent = ElectricityAgentGraph(
                         llm_wrapper=llm_wrapper,
                         orchestrator=orchestrator,
                         data_adapter=data_adapter,
                         settings=settings,
+                        web_search_client=web_search_client,
+                        checkpointer=checkpointer,
                     )
-                    logger.info(f"ElectricityAgentGraph preloaded (LangGraph framework)")
+                    logger.info(f"ElectricityAgentGraph preloaded (LangGraph framework with DbCheckpointer)")
                 else:
                     web_search_client = create_web_search_client(settings)
                     
