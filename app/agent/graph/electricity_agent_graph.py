@@ -218,12 +218,18 @@ class ElectricityAgentGraph:
         
         logger.info(f"[ElectricityAgent] Run completed in {elapsed:.2f}s, iterations={result.get('iteration_count', 0)}")
         
+        # 处理超时无答案的情况
+        answer = result.get("answer", "")
+        if not answer and result.get("tool_results"):
+            logger.warning("[ElectricityAgent] No final answer but has tool results, generating fallback response")
+            answer = self._generate_fallback_answer(query, result.get("tool_results", []))
+        
         chart_paths = result.get("chart_paths", [])
         if chart_paths:
             logger.info(f"[ElectricityAgent] Found {len(chart_paths)} chart paths: {chart_paths}")
         
         return {
-            "answer": result.get("answer", ""),
+            "answer": answer,
             "intent": result.get("intent", ""),
             "tool_calls": [r.get("tool_name") for r in result.get("tool_results", [])],
             "confidence": result.get("confidence", 0.0),
@@ -232,11 +238,43 @@ class ElectricityAgentGraph:
                 "elapsed_seconds": elapsed,
                 "iterations": result.get("iteration_count", 0),
                 "thoughts": result.get("thoughts", []),
+                "timeout": elapsed > self.tool_timeout,
             },
             "policy_chunks": result.get("policy_chunks", []),
             "electricity_data": result.get("electricity_data"),
             "chart_paths": result.get("chart_paths", []),
         }
+    
+    def _generate_fallback_answer(self, query: str, tool_results: List[Dict]) -> str:
+        """Generate a fallback answer when agent times out without final answer."""
+        policy_chunks = []
+        web_results = []
+        
+        for result in tool_results:
+            tool_name = result.get("tool_name", "")
+            output = result.get("output", "")
+            if tool_name == "retrieve_policy" and output:
+                policy_chunks.append(output)
+            elif tool_name == "web_search" and output:
+                web_results.append(output)
+        
+        if policy_chunks or web_results:
+            fallback = "抱歉，处理超时，但已获取以下相关信息：\n\n"
+            
+            if policy_chunks:
+                fallback += "**政策检索结果：**\n"
+                for chunk in policy_chunks[:2]:
+                    fallback += chunk[:500] + "\n...\n"
+            
+            if web_results:
+                fallback += "\n**网络搜索结果：**\n"
+                for result in web_results[:1]:
+                    fallback += result[:500] + "\n...\n"
+            
+            fallback += "\n请稍后重试或简化问题。"
+            return fallback
+        
+        return "抱歉，处理超时，未能获取完整答案。请稍后重试或简化问题。"
 
     def stream(
         self,

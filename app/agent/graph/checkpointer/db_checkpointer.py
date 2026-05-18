@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 from typing import Any, Callable, Iterator, TYPE_CHECKING
@@ -28,6 +29,19 @@ class DbCheckpointer(BaseCheckpointSaver):
     def __init__(self, session_factory: Callable[[], Session]):
         self.session_factory = session_factory
         self.serde = JsonPlusSerializer()
+    
+    def _serialize_checkpoint(self, checkpoint: Checkpoint) -> str:
+        type_str, data_bytes = self.serde.dumps_typed(checkpoint)
+        return json.dumps({
+            "type": type_str,
+            "data": base64.b64encode(data_bytes).decode("utf-8")
+        })
+    
+    def _deserialize_checkpoint(self, data_str: str) -> Checkpoint:
+        data = json.loads(data_str)
+        type_str = data["type"]
+        bytes_data = base64.b64decode(data["data"])
+        return self.serde.loads_typed((type_str, bytes_data))
 
     def _get_thread_id(self, config: dict) -> str:
         configurable = config.get("configurable", {})
@@ -62,14 +76,24 @@ class DbCheckpointer(BaseCheckpointSaver):
             checkpoint_record = query.first()
 
             if checkpoint_record:
-                checkpoint_data = self.serde.loads(checkpoint_record.checkpoint_data)
+                checkpoint_data = self._deserialize_checkpoint(checkpoint_record.checkpoint_data)
                 metadata_data = json.loads(checkpoint_record.checkpoint_metadata or "{}")
+                
+                parent_config = None
+                if checkpoint_record.parent_checkpoint_id:
+                    parent_config = {
+                        "configurable": {
+                            "thread_id": thread_id,
+                            "checkpoint_ns": checkpoint_ns,
+                            "checkpoint_id": checkpoint_record.parent_checkpoint_id,
+                        }
+                    }
 
                 return CheckpointTuple(
                     config=config,
                     checkpoint=checkpoint_data,
                     metadata=metadata_data,
-                    parent_config_id=checkpoint_record.parent_checkpoint_id,
+                    parent_config=parent_config,
                 )
 
         return None
@@ -86,7 +110,7 @@ class DbCheckpointer(BaseCheckpointSaver):
         checkpoint_ns = self._get_checkpoint_ns(config)
         checkpoint_id = checkpoint.get("id", "")
 
-        checkpoint_data = self.serde.dumps(checkpoint)
+        checkpoint_data = self._serialize_checkpoint(checkpoint)
         metadata_data = json.dumps(metadata)
 
         with self.session_factory() as db:
@@ -151,14 +175,24 @@ class DbCheckpointer(BaseCheckpointSaver):
                 query = query.limit(limit)
 
             for checkpoint_record in query:
-                checkpoint_data = self.serde.loads(checkpoint_record.checkpoint_data)
+                checkpoint_data = self._deserialize_checkpoint(checkpoint_record.checkpoint_data)
                 metadata_data = json.loads(checkpoint_record.checkpoint_metadata or "{}")
+                
+                parent_config = None
+                if checkpoint_record.parent_checkpoint_id:
+                    parent_config = {
+                        "configurable": {
+                            "thread_id": thread_id,
+                            "checkpoint_ns": checkpoint_ns,
+                            "checkpoint_id": checkpoint_record.parent_checkpoint_id,
+                        }
+                    }
 
                 yield CheckpointTuple(
                     config=config,
                     checkpoint=checkpoint_data,
                     metadata=metadata_data,
-                    parent_config_id=checkpoint_record.parent_checkpoint_id,
+                    parent_config=parent_config,
                 )
 
     def delete_thread(self, thread_id: str) -> None:

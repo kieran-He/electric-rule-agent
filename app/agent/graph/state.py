@@ -19,6 +19,10 @@ class ElectricityAgentState(TypedDict):
     tool_results: List[Dict]
     last_tool_calls: List[Dict]
     
+    # 信息充足度标记
+    sufficient_info: bool
+    sufficiency_reason: str
+    
     policy_chunks: List[Dict]
     electricity_data: Optional[Dict]
     analysis_result: Optional[Dict]
@@ -61,6 +65,8 @@ def create_initial_state(
         "tool_calls": [],
         "tool_results": [],
         "last_tool_calls": [],
+        "sufficient_info": False,
+        "sufficiency_reason": "",
         "policy_chunks": [],
         "electricity_data": None,
         "analysis_result": None,

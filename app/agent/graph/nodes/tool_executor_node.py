@@ -7,12 +7,20 @@ from app.agent.graph.tools.tool_registry import ALL_TOOLS
 
 logger = logging.getLogger(__name__)
 
+# 信息充足判断阈值
+SUFFICIENCY_THRESHOLDS = {
+    "policy_output_min_length": 1500,  # 政策检索结果最小长度
+    "web_output_min_length": 500,      # 网络搜索结果最小长度
+    "max_iterations_before_force_stop": 2,  # 强制停止的最大迭代次数
+}
+
 
 def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     """
     Execute tools based on tool_calls in state.
     
     Runs each tool, captures results, and updates state.
+    Also checks information sufficiency for early termination.
     """
     tool_calls = state.get("tool_calls", [])
     if not tool_calls:
@@ -112,10 +120,82 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                 "success": False,
             })
     
-    return {
+    # 检查信息充足度
+    all_tool_results = state.get("tool_results", []) + tool_results
+    iteration_count = state.get("iteration_count", 0)
+    
+    sufficiency_info = _check_sufficiency(all_tool_results, iteration_count)
+    
+    result = {
         "tool_results": tool_results,
         "tool_calls": [],
         "errors": state.get("errors", []) + errors,
+    }
+    
+    if sufficiency_info.get("sufficient"):
+        logger.info(f"[ToolExecutor] Information sufficient: {sufficiency_info.get('reason')}")
+        result["sufficient_info"] = True
+        result["sufficiency_reason"] = sufficiency_info.get("reason")
+    
+    return result
+
+
+def _check_sufficiency(tool_results: list, iteration_count: int) -> Dict[str, Any]:
+    """
+    Check if the information collected is sufficient to answer the question.
+    
+    Returns:
+        Dict with 'sufficient' bool and 'reason' string
+    """
+    # 收集各工具的结果长度
+    policy_length = 0
+    web_length = 0
+    data_available = False
+    tools_used = set()
+    
+    for result in tool_results:
+        if result.get("success"):
+            tool_name = result.get("tool_name", "")
+            output = result.get("output", "")
+            output_len = len(output) if output else 0
+            tools_used.add(tool_name)
+            
+            if tool_name == "retrieve_policy":
+                policy_length += output_len
+            elif tool_name == "web_search":
+                web_length += output_len
+            elif tool_name == "fetch_electricity_data":
+                data_available = output_len > 0
+    
+    # 判断条件
+    reasons = []
+    
+    # 条件1: 政策检索结果足够长
+    if policy_length >= SUFFICIENCY_THRESHOLDS["policy_output_min_length"]:
+        reasons.append(f"政策检索结果充足({policy_length}字符)")
+    
+    # 条件2: 已执行了政策检索和网络搜索
+    if "retrieve_policy" in tools_used and "web_search" in tools_used:
+        reasons.append("已完成政策检索和网络搜索")
+    
+    # 条件3: 政策+网络结果总量足够
+    total_length = policy_length + web_length
+    if total_length >= 2000:
+        reasons.append(f"总信息量充足({total_length}字符)")
+    
+    # 条件4: 迭代次数达到阈值，强制停止
+    if iteration_count >= SUFFICIENCY_THRESHOLDS["max_iterations_before_force_stop"]:
+        reasons.append(f"已达到{iteration_count}轮迭代，建议生成答案")
+    
+    # 判断是否充足
+    sufficient = len(reasons) > 0
+    
+    return {
+        "sufficient": sufficient,
+        "reason": "; ".join(reasons) if reasons else "信息不足",
+        "policy_length": policy_length,
+        "web_length": web_length,
+        "tools_used": list(tools_used),
     }
 
 

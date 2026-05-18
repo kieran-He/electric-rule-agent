@@ -11,16 +11,18 @@ from typing import Callable
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import PatchMessageRequest, PatchMessageRequestBody, ReplyMessageRequest, ReplyMessageRequestBody
-from lark_oapi.api.im.v1 import CreateImageRequest, CreateImageRequestBody
+from lark_oapi.api.im.v1 import CreateImageRequest, CreateImageRequestBody, GetMessageRequest
 from sqlalchemy.orm import Session
 
 from app.agent.agent_singleton import agent_singleton
 from app.core.logging_context import set_trace_id, set_session_id
 from app.db.models.processed_message import ProcessedMessage
 from app.schemas.agent import AgentRequest, AgentResponse
+from app.services.benchmark_service import BenchmarkService
 from app.services.conversation_service import ConversationService
 from app.services.coreference_resolver import CoreferenceResolver
 from app.services.trace_service import TraceService
+from app.utils.feishu_card_builder import FeishuCardBuilder
 from app.utils.markdown_to_feishu import MarkdownToFeishuConverter
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,8 @@ class FeishuAgentService:
         )
         self._processed_ttl = 86400
         self._md_converter = MarkdownToFeishuConverter()
+        self._benchmark_service = BenchmarkService()
+        self._card_builder = FeishuCardBuilder()
     
     def _get_session_id(self, open_id: str, chat_id: str, chat_type: str) -> str:
         """
@@ -190,6 +194,12 @@ class FeishuAgentService:
         logger.info(f"Session created: {session_id} (chat_type={chat_type}, open_id={open_id}, chat_id={chat_id})")
         logger.info(f"Received message from {open_id} in {chat_type}: {text[:100]}")
         
+        history = self.conversation_service.get_history(session_id)
+        is_first_message = len(history) == 0
+        
+        if is_first_message:
+            self._send_example_questions_card(chat_id)
+        
         reply_msg_id = self._reply_message(message_id, "正在思考中，请稍候...")
         
         try:
@@ -219,6 +229,141 @@ class FeishuAgentService:
             self._update_message(reply_msg_id, reply_text, image_keys)
         else:
             self._reply_message(message_id, reply_text)
+    
+    def handle_card_action(self, data: lark.Card) -> None:
+        if not data.action:
+            logger.warning("Invalid card action data: missing action")
+            return
+        
+        action_value = data.action.value
+        message_id = data.open_message_id
+        chat_id = data.open_chat_id
+        open_id = data.open_id
+        
+        if not action_value:
+            logger.warning("Card action missing value")
+            return
+        
+        action_data = self._card_builder.parse_action_value(action_value)
+        if not action_data:
+            logger.warning(f"Failed to parse card action value: {action_value}")
+            return
+        
+        action_type = action_data.get("action")
+        
+        if action_type == "refresh":
+            self._handle_refresh_action(message_id)
+        elif action_type == "ask_question":
+            self._handle_ask_question_action(message_id, chat_id, open_id, action_data)
+        else:
+            logger.warning(f"Unknown card action type: {action_type}")
+    
+    def _handle_refresh_action(self, message_id: str) -> None:
+        questions = self._benchmark_service.get_random_questions(count=5)
+        if not questions:
+            logger.warning("No questions available for refresh")
+            return
+        
+        card_content = self._card_builder.build_example_questions_card(questions)
+        
+        request = PatchMessageRequest.builder() \
+            .message_id(message_id) \
+            .request_body(PatchMessageRequestBody.builder()
+                          .content(json.dumps(card_content))
+                          .build()) \
+            .build()
+        
+        try:
+            response = self.client.im.v1.message.patch(request)
+            if response.success():
+                logger.info(f"Card refreshed successfully: {message_id}")
+            else:
+                logger.error(f"Card refresh failed: {response.code} - {response.msg}")
+        except Exception as e:
+            logger.exception(f"Error refreshing card: {e}")
+    
+    def _get_chat_type(self, message_id: str) -> str:
+        try:
+            request = GetMessageRequest.builder() \
+                .message_id(message_id) \
+                .build()
+            
+            response = self.client.im.v1.message.get(request)
+            if response.success() and response.data and response.data.message:
+                return response.data.message.chat_type or "p2p"
+        except Exception as e:
+            logger.warning(f"Failed to get chat_type for message {message_id}: {e}")
+        
+        return "p2p"
+    
+    def _handle_ask_question_action(self, message_id: str, chat_id: str, open_id: str, action_data: dict) -> None:
+        question_text = action_data.get("question", "")
+        if not question_text:
+            logger.warning("Ask question action missing question text")
+            return
+        
+        chat_type = self._get_chat_type(message_id)
+        session_id = self._get_session_id(open_id, chat_id, chat_type)
+        trace_id = f"trace_{uuid.uuid4().hex[:12]}"
+        
+        set_trace_id(trace_id)
+        set_session_id(session_id)
+        
+        logger.info(f"Card button clicked: question={question_text[:50]}, session_id={session_id}")
+        
+        reply_msg_id = self._reply_message(message_id, "正在思考中，请稍候...")
+        
+        try:
+            response = self._process_with_agent(question_text, session_id, trace_id)
+            reply_text = self._format_reply(response)
+            image_keys = []
+            
+            if response.chart_paths:
+                image_keys = self._upload_charts(response.chart_paths)
+            
+            self.conversation_service.append_turn(
+                session_id=session_id,
+                user_query=question_text,
+                bot_reply=response.answer,
+                intent=response.intent,
+            )
+        except Exception as e:
+            logger.exception(f"Error processing card question: {e}")
+            reply_text = "抱歉，处理您的请求时出现错误，请稍后重试。"
+            image_keys = []
+        
+        if reply_msg_id:
+            self._update_message(reply_msg_id, reply_text, image_keys)
+        else:
+            self._reply_message(message_id, reply_text)
+    
+    def _send_example_questions_card(self, chat_id: str) -> None:
+        questions = self._benchmark_service.get_random_questions(count=5)
+        if not questions:
+            logger.warning("No questions available for example card")
+            return
+        
+        card_content = self._card_builder.build_example_questions_card(questions)
+        
+        from lark_oapi.api.im.v1 import CreateMessageRequest, CreateMessageRequestBody
+        
+        request = CreateMessageRequest.builder() \
+            .receive_id_type("chat_id") \
+            .request_body(CreateMessageRequestBody.builder()
+                          .receive_id(chat_id)
+                          .msg_type("interactive")
+                          .content(json.dumps(card_content))
+                          .build()) \
+            .build()
+        
+        try:
+            response = self.client.im.v1.message.create(request)
+            if response.success():
+                logger.info(f"Example questions card sent to chat {chat_id}")
+            else:
+                logger.error(f"Failed to send example questions card: {response.code} - {response.msg}")
+        except Exception as e:
+            logger.exception(f"Error sending example questions card: {e}")
     
     def _process_with_agent(self, text: str, session_id: str, trace_id: str) -> AgentResponse:
         history = self.conversation_service.get_history(session_id)

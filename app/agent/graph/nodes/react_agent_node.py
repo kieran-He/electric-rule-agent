@@ -37,7 +37,8 @@ REACT_SYSTEM_PROMPT = """你是一个电力市场分析助手，能够使用工�
 - 政策法规问题 → 使用 retrieve_policy
 - 数据查询 → 使用 fetch_electricity_data
 - 数据分析 → 使用 analyze_statistics
-- 当获取到足够信息后，直接给出答案"""
+- **重要**: 当获取到足够信息后，直接给出答案，不要继续调用工具
+- **重要**: 如果系统提示"信息已充足"，必须直接生成答案，不要再调用任何工具"""
 
 
 def _build_messages(state: ElectricityAgentState) -> List:
@@ -89,7 +90,20 @@ def _build_messages(state: ElectricityAgentState) -> List:
         query = state["query"]
         provinces = state.get("provinces", ["SN"])
         province_str = ", ".join(provinces)
-        reminder = f"""
+        
+        # 检查信息充足度
+        sufficient_info = state.get("sufficient_info", False)
+        sufficiency_reason = state.get("sufficiency_reason", "")
+        
+        if sufficient_info:
+            # 强制生成答案
+            reminder = f"""
+
+【系统提示】信息已充足: {sufficiency_reason}
+【重要】请直接基于上述工具结果生成完整答案，不要再调用任何工具！
+用户原始问题是: {query}"""
+        else:
+            reminder = f"""
 
 【重要提醒】用户原始问题是: {query}
 请基于上述工具结果，针对原始问题进行分析。如果结果不足以回答原始问题，可以继续调用工具；如果已经足够，请直接生成答案。"""

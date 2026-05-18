@@ -69,9 +69,14 @@ class FeishuBot:
         if self.service:
             self.executor.submit(self.service.handle_message, data)
 
+    def _handle_card_action(self, data: lark.Card) -> None:
+        if self.service:
+            self.executor.submit(self.service.handle_card_action, data)
+
     def _create_event_handler(self) -> lark.EventDispatcherHandler:
         return lark.EventDispatcherHandler.builder("", "") \
             .register_p2_im_message_receive_v1(self._handle_message) \
+            .register_p2_card_action_trigger(self._handle_card_action) \
             .build()
 
     def start(self) -> None:
