@@ -306,19 +306,39 @@ class ElectricityAgentGraph:
     ) -> AgentResponse:
         trace_id = f"agent_{uuid.uuid4().hex[:12]}"
         
+        context = request.context or {}
+        context["show_chunks"] = getattr(request, "show_chunks", True)
+        
         result = self.run(
             query=request.query,
             provinces=request.province_codes,
             session_id=request.session_id,
             history=request.history,
-            context=request.context,
+            context=context,
         )
+        
+        citations = []
+        policy_chunks = result.get("policy_chunks", [])
+        if policy_chunks:
+            from app.schemas.answer import CitationItem
+            for chunk_data in policy_chunks[:8]:
+                if isinstance(chunk_data, dict):
+                    citation = CitationItem(
+                        doc_name=chunk_data.get("source", ""),
+                        status="formal",
+                        title_path=chunk_data.get("title_path", ""),
+                        excerpt=chunk_data.get("content", "")[:260],
+                        issuer=chunk_data.get("issuer"),
+                        issue_date=chunk_data.get("issue_date"),
+                        effective_date=chunk_data.get("effective_date"),
+                    )
+                    citations.append(citation)
         
         return AgentResponse(
             answer=result.get("answer", ""),
             intent=result.get("intent", ""),
             tool_calls=result.get("tool_calls", []),
-            citations=[],
+            citations=citations,
             metadata=result.get("metadata", {}),
             confidence=result.get("confidence", 0.0),
             trace_id=trace_id,

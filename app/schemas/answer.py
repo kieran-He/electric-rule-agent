@@ -11,6 +11,9 @@ class CitationItem(BaseModel):
     excerpt: str
     page_start: int | None = None
     page_end: int | None = None
+    issuer: str | None = None
+    issue_date: str | None = None
+    effective_date: str | None = None
 
 
 class QueryAnswer(BaseModel):

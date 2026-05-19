@@ -60,6 +60,8 @@ def _build_metadata(clause: ClauseChunk, document: ProcessedDocument) -> dict[st
         "source_path": document.metadata.source_file,
         "file_hash": document.metadata.file_hash,
         "doc_title": document.metadata.doc_name[:200] if document.metadata.doc_name else "",
+        "issuer": document.metadata.issuer or "",
+        "issue_date": str(document.metadata.issue_date or ""),
         "effective_date": str(document.metadata.effective_date or ""),
         "policy_level": document.metadata.status,
         "doc_type": document.metadata.doc_type,

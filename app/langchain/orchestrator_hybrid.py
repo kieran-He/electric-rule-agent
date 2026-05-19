@@ -407,6 +407,9 @@ class HybridQAOrchestrator:
                 excerpt=chunk.text[:260],
                 page_start=int(chunk.metadata.get("page_start", 0)) if chunk.metadata.get("page_start") else None,
                 page_end=int(chunk.metadata.get("page_end", 0)) if chunk.metadata.get("page_end") else None,
+                issuer=chunk.metadata.get("issuer"),
+                issue_date=chunk.metadata.get("issue_date"),
+                effective_date=chunk.metadata.get("effective_date"),
             )
             citations.append(citation)
         return citations
@@ -463,6 +466,11 @@ class HybridQAOrchestrator:
         llm_latency = int((time.time() - llm_start) * 1000)
         metrics_store.record_latency(llm_latency, "llm")
         metrics_store.record_tokens(input_tokens, output_tokens)
+        
+        show_chunks = getattr(req, 'show_chunks', True)
+        if show_chunks and chunks and req.need_citation:
+            from app.langchain.chunk_formatter import format_answer_with_chunk_refs
+            answer = format_answer_with_chunk_refs(answer, chunks, max_chunks=3)
         
         citations = self._build_citations(chunks) if req.need_citation else []
         used_documents = [c.doc_name for c in citations]

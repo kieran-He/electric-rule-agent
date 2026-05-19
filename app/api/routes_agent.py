@@ -84,6 +84,7 @@ def chat(
             province_codes=req.province_codes,
             history=history,
             context=req.context,
+            show_chunks=req.show_chunks,
         )
         
         response = agent.chat(enhanced_req)

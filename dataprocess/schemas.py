@@ -36,6 +36,7 @@ class DocumentMetadata(BaseModel):
     subject_scope: list[str] = Field(default_factory=list)
     version_name: str | None = None
     status: DocumentStatus = "formal"
+    issuer: str | None = None
     issue_date: date | None = None
     effective_date: date | None = None
     source_file: str

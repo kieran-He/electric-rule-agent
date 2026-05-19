@@ -31,6 +31,9 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     
     tool_results = []
     errors = []
+    policy_chunks = []
+    electricity_data = None
+    chart_paths = []
     
     for tc in tool_calls:
         tool_name = tc.get("name", "")
@@ -58,11 +61,18 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
         
         try:
             if tool_name == "retrieve_policy":
-                # 强制使用原始问题，避免LLM生成的查询偏离
-                # orchestrator内部会进行query重写，无需LLM预处理
                 query = state.get("query", "")
                 provinces = tool_args.get("provinces", state.get("provinces", ["SN"]))
-                output = tool_func.invoke({"query": query, "provinces": provinces})
+                show_chunks = state.get("context", {}).get("show_chunks", True)
+                output = tool_func.invoke({"query": query, "provinces": provinces, "show_chunks": show_chunks})
+                
+                # 解析并保存policy_chunks
+                try:
+                    result_data = json.loads(output) if output else {}
+                    if isinstance(result_data, dict) and "chunks" in result_data:
+                        policy_chunks = result_data["chunks"]
+                except json.JSONDecodeError:
+                    pass
                 
             elif tool_name == "fetch_electricity_data":
                 province = tool_args.get("province", state.get("provinces", ["SN"])[0])
@@ -73,6 +83,14 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                     "metric": metric,
                     "time_range": time_range,
                 })
+                
+                try:
+                    result_data = json.loads(output) if output else {}
+                    electricity_data = result_data
+                    if isinstance(result_data, dict) and result_data.get("chart_path"):
+                        chart_paths.append(result_data.get("chart_path"))
+                except json.JSONDecodeError:
+                    pass
                 
             elif tool_name == "analyze_statistics":
                 data = tool_args.get("data", [])
@@ -85,7 +103,6 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                 })
                 
             elif tool_name == "web_search":
-                # 强制使用原始问题，避免LLM生成的搜索词偏离
                 query = state.get("query", "")
                 provinces = tool_args.get("provinces", state.get("provinces", ["SN"]))
                 output = tool_func.invoke({"query": query, "provinces": provinces})
@@ -101,8 +118,6 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                 "output": output,
                 "success": True,
             })
-            
-            _update_state_data(state, tool_name, output)
             
         except Exception as e:
             logger.exception(f"[ToolExecutor] Tool {tool_name} failed: {e}")
@@ -130,6 +145,9 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
         "tool_results": tool_results,
         "tool_calls": [],
         "errors": state.get("errors", []) + errors,
+        "policy_chunks": policy_chunks,
+        "electricity_data": electricity_data,
+        "chart_paths": chart_paths,
     }
     
     if sufficiency_info.get("sufficient"):

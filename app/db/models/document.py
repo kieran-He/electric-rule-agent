@@ -19,6 +19,7 @@ class Document(Base):
     subject_scope: Mapped[str | None] = mapped_column(String(256), nullable=True)
     version_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="formal", index=True)
+    issuer: Mapped[str | None] = mapped_column(String(512), nullable=True)
     issue_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     source_file: Mapped[str] = mapped_column(String(1024), unique=True)

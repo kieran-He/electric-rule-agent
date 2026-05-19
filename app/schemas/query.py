@@ -48,6 +48,10 @@ class QueryRequest(BaseModel):
         default=True,
         description="Whether to include citations in response"
     )
+    show_chunks: bool = Field(
+        default=True,
+        description="Whether to show chunk references in answer"
+    )
 
 
 QueryRequestExample = QueryRequest(

@@ -210,6 +210,24 @@ def react_agent_node(state: ElectricityAgentState) -> Dict[str, Any]:
                     elif hasattr(block, 'text'):
                         content += block.text
         
+        # 追加chunk引用部分（如果存在）
+        tool_results = state.get("tool_results", [])
+        for result in tool_results:
+            if result.get("tool_name") == "retrieve_policy" and result.get("success"):
+                try:
+                    output_data = json.loads(result.get("output", "{}"))
+                    if isinstance(output_data, dict):
+                        ref_links = output_data.get("chunk_ref_links", "")
+                        chunk_section = output_data.get("chunk_refs_section", "")
+                        
+                        if ref_links or chunk_section:
+                            content += "\n\n---\n\n" + ref_links
+                            content += "\n\n---\n\n## 参考材料原文\n\n" + chunk_section
+                            logger.info(f"[ReActAgent] Added chunk refs: links={len(ref_links)}, section={len(chunk_section)}")
+                        break
+                except json.JSONDecodeError:
+                    pass
+        
         logger.info(f"[ReActAgent] Final answer: {len(content)} chars")
         
         thoughts.append({

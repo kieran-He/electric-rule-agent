@@ -74,6 +74,32 @@ def extract_version_name(name: str) -> str | None:
     return next(group for group in match.groups() if group)
 
 
+def extract_issuer(name: str) -> str | None:
+    """
+    Extract issuer from file name.
+    
+    Patterns:
+    - Look for keywords like '发展和改革委员会', '能源局', '电力交易中心', etc.
+    """
+    issuer_patterns = [
+        r"([^\s,，]+发展和改革委员会)",
+        r"([^\s,，]+发展和改革委)",
+        r"([^\s,，]+能源局)",
+        r"([^\s,，]+工信厅)",
+        r"([^\s,，]+工业和信息化厅)",
+        r"([^\s,，]+电力交易中心)",
+        r"国家能源局[^\s,，]+监管[^\s,，]+",
+        r"国家能源局[东南西北]+监管局",
+    ]
+    
+    for pattern in issuer_patterns:
+        match = re.search(pattern, name)
+        if match:
+            return match.group(0)
+    
+    return None
+
+
 def extract_metadata(file_path: str, file_hash: str, province_code_override: str | None = None) -> DocumentMetadata:
     path = Path(file_path)
     stem = path.stem
@@ -109,6 +135,7 @@ def extract_metadata(file_path: str, file_hash: str, province_code_override: str
         subject_scope=subject_scope,
         version_name=extract_version_name(stem),
         status=status,
+        issuer=extract_issuer(stem),
         issue_date=parse_date_from_name(stem),
         effective_date=None,
         source_file=str(path),

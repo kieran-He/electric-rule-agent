@@ -58,6 +58,7 @@ class RAGTool(BaseTool):
             province_codes=province_codes,
             top_k=ctx.get("top_k", 8),
             need_citation=ctx.get("need_citation", True),
+            show_chunks=ctx.get("show_chunks", True),
         )
         
         try:

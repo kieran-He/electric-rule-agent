@@ -2,20 +2,55 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.schemas.answer import CitationItem
 
 
 class AgentRequest(BaseModel):
-    query: str = Field(min_length=1, description="User query text")
-    session_id: str = Field(min_length=1, description="Session identifier")
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "query": "陕西省电力市场化交易流程是什么？",
+                    "session_id": "session_001",
+                    "province_codes": ["SN"],
+                    "show_chunks": True,
+                }
+            ]
+        }
+    )
+    
+    query: str = Field(
+        min_length=1,
+        description="User query text",
+        examples=["陕西省电力市场化交易流程是什么？"]
+    )
+    session_id: str = Field(
+        min_length=1,
+        description="Session identifier",
+        examples=["session_001"]
+    )
     province_codes: List[str] = Field(
         default_factory=lambda: ["SN"],
-        description="Province codes to search"
+        description="Province codes to search",
+        examples=[["SN"], ["SN", "SX"]]
     )
-    history: List[str] = Field(default_factory=list, description="Conversation history")
-    context: Dict[str, Any] = Field(default_factory=dict, description="Additional context")
+    history: List[str] = Field(
+        default_factory=list,
+        description="Conversation history",
+        examples=[["Q:上一个问题", "A:上一个回答"]]
+    )
+    context: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional context",
+        examples=[{"need_citation": True}]
+    )
+    show_chunks: bool = Field(
+        default=True,
+        description="Whether to show chunk references in answer",
+        examples=[True]
+    )
 
 
 class AgentResponse(BaseModel):

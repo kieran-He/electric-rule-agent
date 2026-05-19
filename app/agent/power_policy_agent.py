@@ -98,6 +98,7 @@ class PowerPolicyAgent:
             "history": request.history,
             "top_k": getattr(request.context, "top_k", 8) if request.context else 8,
             "need_citation": getattr(request.context, "need_citation", True) if request.context else True,
+            "show_chunks": getattr(request, "show_chunks", True),
             "db": db,
             "trace_service": trace_service,
             "orchestrator": self._orchestrator,
