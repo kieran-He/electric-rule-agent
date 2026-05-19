@@ -10,6 +10,7 @@ from app.api.routes_admin import router as admin_router
 from app.api.routes_agent import router as agent_router
 from app.api.routes_evaluation import router as evaluation_router
 from app.api.routes_feedback import router as feedback_router
+from app.api.routes_feishu import router as feishu_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_metrics import router as metrics_router
 from app.api.routes_query import router as query_router
@@ -60,6 +61,7 @@ app.include_router(admin_router)
 app.include_router(metrics_router)
 app.include_router(evaluation_router)
 app.include_router(feedback_router)
+app.include_router(feishu_router)
 
 
 @app.exception_handler(AppError)
