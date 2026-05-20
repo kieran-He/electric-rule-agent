@@ -103,7 +103,7 @@ def format_chunks_for_context_with_compression(
     compress: bool = True,
     max_chars: int = 3000,
     show_chunks: bool = True,
-) -> Tuple[str, Dict]:
+) -> Tuple[str, Dict, List[PolicyChunk]]:
     """
     格式化检索结果为上下文，支持压缩
 
@@ -114,10 +114,11 @@ def format_chunks_for_context_with_compression(
         show_chunks: 是否添加chunk编号标记（用于正文引用）
 
     Returns:
-        (context_string, compression_stats)
+        (context_string, compression_stats, final_chunks)
+        final_chunks 是最终用于生成 context 的 chunks（压缩后或原始），用于 citations
     """
     if not chunks:
-        return "- 无相关内容", {"original": 0, "compressed": 0, "reduction": 0.0}
+        return "- 无相关内容", {"original": 0, "compressed": 0, "reduction": 0.0}, []
 
     if compress:
         compressor = ContextCompressor(max_chars=max_chars)
@@ -138,11 +139,9 @@ def format_chunks_for_context_with_compression(
         doc_name = chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", "未知文档")
         
         if show_chunks:
-            # 添加chunk编号标记，便于LLM引用
-            short_name = doc_name[:25] if len(doc_name) > 25 else doc_name
-            line = f"[chunk-{i}] 《{short_name}》\n{chunk.text}{level_mark}"
+            line = f"[chunk-{i}] 《{doc_name}》\n{chunk.text}{level_mark}"
         else:
             line = f"{i}. {chunk.text}{level_mark}"
         lines.append(line)
 
-    return "\n\n".join(lines), stats
+    return "\n\n".join(lines), stats, chunks

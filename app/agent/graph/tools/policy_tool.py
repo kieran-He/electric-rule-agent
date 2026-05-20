@@ -58,24 +58,11 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
             logger.info(f"[PolicyTool] Retrieved {len(policy_chunks)} chunks from orchestrator")
             
             if policy_chunks:
-                if show_chunks:
-                    from app.langchain.chunk_formatter import format_answer_with_chunk_refs
-                    formatted = format_answer_with_chunk_refs("", chunks, max_chunks=3)
-                    
-                    # 分离链接部分和原文部分
-                    parts = formatted.split("## 参考材料原文")
-                    ref_links = parts[0] if len(parts) > 0 else ""
-                    chunk_section = parts[1] if len(parts) > 1 else ""
-                    
-                    result = {
-                        "chunks": policy_chunks,
-                        "chunk_ref_links": ref_links.strip(),
-                        "chunk_refs_section": chunk_section.strip(),
-                        "detected_codes": detected_codes,
-                    }
-                    return json.dumps(result, ensure_ascii=False)
-                
-                return json.dumps(policy_chunks, ensure_ascii=False)
+                result = {
+                    "chunks": policy_chunks,
+                    "detected_codes": detected_codes,
+                }
+                return json.dumps(result, ensure_ascii=False)
         
     except Exception as e:
         logger.warning(f"[PolicyTool] Orchestrator retrieval failed: {e}, using mock data")

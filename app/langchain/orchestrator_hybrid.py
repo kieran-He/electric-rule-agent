@@ -311,7 +311,7 @@ class HybridQAOrchestrator:
         history: list[str] = None,
         rewrite_result: Optional[RewriteResult] = None,
         retrieval_quality: Optional[RetrievalQuality] = None,
-    ) -> tuple[str, int, int, str]:
+    ) -> tuple[str, int, int, str, List[PolicyChunk]]:
         """
         Generate answer using LangChain LLM with token counts.
         
@@ -324,13 +324,14 @@ class HybridQAOrchestrator:
             retrieval_quality: Optional retrieval quality info for fallback decision
             
         Returns:
-            Tuple of (answer string, input_tokens, output_tokens, intent)
+            Tuple of (answer string, input_tokens, output_tokens, intent, final_chunks)
+            final_chunks 是压缩后用于生成 context 的 chunks，用于 citations
         """
         from app.langchain.retriever_wrapper import format_chunks_for_context_with_compression
         
         if not chunks:
             logger.info(f"No chunks found for query: {query}")
-            return "知识库中未找到与您问题相关的文档。请尝试更换关键词或确认文档库是否完整。", 0, 0, "no_result"
+            return "知识库中未找到与您问题相关的文档。请尝试更换关键词或确认文档库是否完整。", 0, 0, "no_result", []
         
         detected_provinces = self._get_provinces_from_rewrite(rewrite_result, query)
         filtered_history = self._filter_history_by_provinces(history, detected_provinces)
@@ -338,7 +339,7 @@ class HybridQAOrchestrator:
         
         compress_enabled = getattr(self.settings, 'context_compress_enabled', True)
         max_chars = getattr(self.settings, 'context_max_chars', 3000)
-        provincial_context, compression_stats = format_chunks_for_context_with_compression(
+        provincial_context, compression_stats, final_chunks = format_chunks_for_context_with_compression(
             chunks,
             compress=compress_enabled,
             max_chars=max_chars,
@@ -367,12 +368,12 @@ class HybridQAOrchestrator:
         try:
             answer, input_tokens, output_tokens = self.llm_wrapper.invoke(user_content, system=system_prompt)
             if not answer:
-                return self._build_mock_answer(query, chunks), input_tokens, output_tokens, detected_intent
+                return self._build_mock_answer(query, final_chunks), input_tokens, output_tokens, detected_intent, final_chunks
             
-            return answer, input_tokens, output_tokens, detected_intent
+            return answer, input_tokens, output_tokens, detected_intent, final_chunks
         except Exception as e:
             logger.error(f"LLM invoke failed: {e}")
-            return self._build_mock_answer(query, chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0, detected_intent
+            return self._build_mock_answer(query, final_chunks) + f"\n\n[LLM服务暂时不可用: {str(e)[:100]}]", 0, 0, detected_intent, final_chunks
     
     
     
@@ -413,6 +414,166 @@ class HybridQAOrchestrator:
                 effective_date=chunk.metadata.get("effective_date"),
             )
             citations.append(citation)
+        return citations
+    
+    def _extract_cited_chunks(self, answer: str, chunks: List[PolicyChunk]) -> List[int]:
+        import re
+        pattern = r'\[《([^》]+)》\]\(#chunk-(\d+)\)'
+        matches = re.findall(pattern, answer)
+        
+        seen = set()
+        cited_indices = []
+        for cited_doc, num in matches:
+            idx = int(num)
+            if idx not in seen and idx <= len(chunks):
+                # 验证文档名匹配（模糊匹配）
+                chunk = chunks[idx - 1]
+                full_doc_name = chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", "")
+                
+                # 模糊匹配：引用的简称是否在完整文档名中
+                # 例如："陕西省电力中长期市场实施细则" 在 "附件1：陕西省电力中长期市场实施细则（征求意见稿）"
+                if cited_doc in full_doc_name:
+                    seen.add(idx)
+                    cited_indices.append(idx)
+                # 处理简称变体
+                elif self._fuzzy_doc_name_match(cited_doc, full_doc_name):
+                    seen.add(idx)
+                    cited_indices.append(idx)
+        
+        return cited_indices
+    
+    def _fuzzy_doc_name_match(self, cited_doc: str, full_doc_name: str) -> bool:
+        """
+        模糊匹配文档简称和完整名
+        
+        处理常见变体：
+        - "陕西电力市场中长期分时段交易实施细则" vs "陕西电力交易中心有限公司关于印发《陕西电力市场中长期分时段交易实施细则（2025年10月修订版）》的通知"
+        """
+        # 提取核心关键词（去掉常见前缀后缀）
+        core_keywords = [
+            "实施细则", "实施方案", "交易规则", "管理办法",
+            "中长期", "分时段", "电力市场", "市场化交易"
+        ]
+        
+        # 检查核心关键词是否匹配
+        for kw in core_keywords:
+            if kw in cited_doc and kw in full_doc_name:
+                # 进一步检查是否有其他共同关键词
+                common_words = 0
+                for word in ["陕西", "电力", "交易", "市场", "2026", "2025"]:
+                    if word in cited_doc and word in full_doc_name:
+                        common_words += 1
+                if common_words >= 2:
+                    return True
+        
+        return False
+    
+    def _renumber_citations_in_answer(
+        self, 
+        answer: str, 
+        chunks: List[PolicyChunk]
+    ) -> tuple[str, List[int], List[PolicyChunk]]:
+        """
+        重新编号 answer 中的引用，从 1 开始连续编号
+        
+        例如：answer 中的 chunk-2, chunk-4, chunk-5, chunk-6 
+        变为 chunk-1, chunk-2, chunk-3, chunk-4
+        
+        Returns:
+            (renumbered_answer, new_indices, ordered_chunks)
+        """
+        import re
+        
+        # 提取原始引用编号
+        pattern = r'\[《[^》]+》\]\(#chunk-(\d+)\)'
+        matches = re.findall(pattern, answer)
+        
+        # 去重并保持顺序
+        seen = set()
+        original_indices = []
+        for m in matches:
+            idx = int(m)
+            if idx not in seen and idx <= len(chunks):
+                # 验证文档名匹配
+                chunk = chunks[idx - 1]
+                full_doc_name = chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", "")
+                # 从 answer 中提取该引用的文档名
+                doc_pattern = r'\[《([^》]+)》\]\(#chunk-' + str(idx) + '\)'
+                doc_match = re.search(doc_pattern, answer)
+                if doc_match:
+                    cited_doc = doc_match.group(1)
+                    if cited_doc in full_doc_name or self._fuzzy_doc_name_match(cited_doc, full_doc_name):
+                        seen.add(idx)
+                        original_indices.append(idx)
+        
+        # 创建映射：原始编号 → 新编号
+        renumber_map = {}
+        for new_idx, old_idx in enumerate(original_indices, 1):
+            renumber_map[old_idx] = new_idx
+        
+        # 替换 answer 中的编号（使用临时标记避免冲突）
+        renumbered_answer = answer
+        
+        # 第一步：将所有 chunk-N 替换为临时标记 TEMP-N
+        for old_idx in original_indices:
+            renumbered_answer = renumbered_answer.replace(
+                f'#chunk-{old_idx}',
+                f'#TEMP-{old_idx}'
+            )
+        
+        # 第二步：将临时标记替换为新编号
+        for old_idx, new_idx in renumber_map.items():
+            renumbered_answer = renumbered_answer.replace(
+                f'#TEMP-{old_idx}',
+                f'#chunk-{new_idx}'
+            )
+        
+        # 按新编号顺序排列 chunks
+        ordered_chunks = [chunks[old_idx - 1] for old_idx in original_indices]
+        
+        return renumbered_answer, list(range(1, len(original_indices) + 1)), ordered_chunks
+    
+    def _build_citations_from_answer(self, answer: str, chunks: List[PolicyChunk]) -> List[CitationItem]:
+        """Build citation items from chunks referenced in answer."""
+        cited_indices = self._extract_cited_chunks(answer, chunks)
+        
+        citations: List[CitationItem] = []
+        for idx in cited_indices:
+            chunk = chunks[idx - 1]
+            citation = CitationItem(
+                doc_name=chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", ""),
+                status=chunk.metadata.get("policy_level", "formal"),
+                title_path=chunk.metadata.get("title_path", ""),
+                article_no=chunk.metadata.get("article_no"),
+                excerpt=chunk.text[:260],
+                page_start=int(chunk.metadata.get("page_start", 0)) if chunk.metadata.get("page_start") else None,
+                page_end=int(chunk.metadata.get("page_end", 0)) if chunk.metadata.get("page_end") else None,
+                issuer=chunk.metadata.get("issuer"),
+                issue_date=chunk.metadata.get("issue_date"),
+                effective_date=chunk.metadata.get("effective_date"),
+            )
+            citations.append(citation)
+        
+        return citations
+    
+    def _build_citations_from_ordered_chunks(self, ordered_chunks: List[PolicyChunk]) -> List[CitationItem]:
+        """Build citation items from ordered chunks (already renumbered 1-N)."""
+        citations: List[CitationItem] = []
+        for chunk in ordered_chunks:
+            citation = CitationItem(
+                doc_name=chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", ""),
+                status=chunk.metadata.get("policy_level", "formal"),
+                title_path=chunk.metadata.get("title_path", ""),
+                article_no=chunk.metadata.get("article_no"),
+                excerpt=chunk.text[:260],
+                page_start=int(chunk.metadata.get("page_start", 0)) if chunk.metadata.get("page_start") else None,
+                page_end=int(chunk.metadata.get("page_end", 0)) if chunk.metadata.get("page_end") else None,
+                issuer=chunk.metadata.get("issuer"),
+                issue_date=chunk.metadata.get("issue_date"),
+                effective_date=chunk.metadata.get("effective_date"),
+            )
+            citations.append(citation)
+        
         return citations
     
     def _build_context_from_chunks(self, chunks: List[PolicyChunk]) -> str:
@@ -460,7 +621,7 @@ class HybridQAOrchestrator:
         province_code = detected_codes[0] if detected_codes else "SN"
         
         llm_start = time.time()
-        answer, input_tokens, output_tokens, detected_intent = self._generate_answer_with_tokens(
+        answer, input_tokens, output_tokens, detected_intent, final_chunks = self._generate_answer_with_tokens(
             req.query, chunks, province_code, history or [], last_rewrite_result,
             retrieval_quality=retrieval_quality
         )
@@ -468,12 +629,12 @@ class HybridQAOrchestrator:
         metrics_store.record_latency(llm_latency, "llm")
         metrics_store.record_tokens(input_tokens, output_tokens)
         
-        show_chunks = getattr(req, 'show_chunks', True)
-        if show_chunks and chunks and req.need_citation:
-            from app.langchain.chunk_formatter import format_answer_with_chunk_refs
-            answer = format_answer_with_chunk_refs(answer, chunks, max_chunks=3)
-        
-        citations = self._build_citations(chunks) if req.need_citation else []
+        # 重新编号 citations，从 1 开始连续编号
+        if req.need_citation:
+            answer, new_indices, ordered_chunks = self._renumber_citations_in_answer(answer, final_chunks)
+            citations = self._build_citations_from_ordered_chunks(ordered_chunks)
+        else:
+            citations = []
         used_documents = [c.doc_name for c in citations]
         
         total_latency = int((time.time() - start_time) * 1000)
