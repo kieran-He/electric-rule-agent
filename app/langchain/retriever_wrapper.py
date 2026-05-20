@@ -102,6 +102,7 @@ def format_chunks_for_context_with_compression(
     chunks: List[PolicyChunk],
     compress: bool = True,
     max_chars: int = 3000,
+    show_chunks: bool = True,
 ) -> Tuple[str, Dict]:
     """
     格式化检索结果为上下文，支持压缩
@@ -110,6 +111,7 @@ def format_chunks_for_context_with_compression(
         chunks: 检索结果
         compress: 是否启用压缩
         max_chars: 最大上下文字符数
+        show_chunks: 是否添加chunk编号标记（用于正文引用）
 
     Returns:
         (context_string, compression_stats)
@@ -133,8 +135,14 @@ def format_chunks_for_context_with_compression(
     for i, chunk in enumerate(chunks, 1):
         policy_level = chunk.metadata.get("policy_level", "formal")
         level_mark = " [草案]" if policy_level == "draft" else ""
-
-        line = f"{i}. {chunk.text}{level_mark}"
+        doc_name = chunk.metadata.get("doc_name") or chunk.metadata.get("source_name", "未知文档")
+        
+        if show_chunks:
+            # 添加chunk编号标记，便于LLM引用
+            short_name = doc_name[:25] if len(doc_name) > 25 else doc_name
+            line = f"[chunk-{i}] 《{short_name}》\n{chunk.text}{level_mark}"
+        else:
+            line = f"{i}. {chunk.text}{level_mark}"
         lines.append(line)
 
-    return "\n".join(lines), stats
+    return "\n\n".join(lines), stats

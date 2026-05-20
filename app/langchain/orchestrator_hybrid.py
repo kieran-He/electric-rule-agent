@@ -342,6 +342,7 @@ class HybridQAOrchestrator:
             chunks,
             compress=compress_enabled,
             max_chars=max_chars,
+            show_chunks=True,
         )
         
         logger.info(f"Context compression stats: {compression_stats}")
