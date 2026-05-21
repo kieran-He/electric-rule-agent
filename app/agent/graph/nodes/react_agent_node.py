@@ -1,7 +1,8 @@
 import json
 import logging
+import re
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, ToolMessage
 
@@ -32,6 +33,14 @@ REACT_SYSTEM_PROMPT = """你是一个电力市场分析助手，能够使用工�
 2. 直接调用工具获取信息（无需自己生成查询内容）
 3. 综合工具结果，生成完整回答
 
+引用规范（必须遵守）:
+- 当 retrieve_policy 返回参考内容时，每个chunk已标注编号如 `[chunk-1] 《文档名》`
+- 在回答正文中引用时，使用格式：`[引用](#chunk-N)`
+- 例如：根据规定，签约比例不低于80% [引用](#chunk-1)
+- **禁止**使用其他格式如 `【chunk-N】` 或 `[chunk-N]` 或 `[《文档名》](#chunk-N)`
+- 引用放在句末，只引用必要的来源
+- **不要**在回答末尾添加"参考文件"或"参考文献"列表
+
 注意事项:
 - 用户提到"最新"、"最近"、"新闻"等关键词 → 使用 web_search
 - 政策法规问题 → 使用 retrieve_policy
@@ -39,6 +48,90 @@ REACT_SYSTEM_PROMPT = """你是一个电力市场分析助手，能够使用工�
 - 数据分析 → 使用 analyze_statistics
 - **重要**: 当获取到足够信息后，直接给出答案，不要继续调用工具
 - **重要**: 如果系统提示"信息已充足"，必须直接生成答案，不要再调用任何工具"""
+
+
+def _fill_and_renumber_citations(answer: str, policy_chunks: List[Dict]) -> Tuple[str, List[Dict]]:
+    """
+    后处理 LLM 答案中的引用：
+    1. 将 [引用](#chunk-N) 替换为 [《docname》](#chunk-N)
+    2. 提取答案中实际出现的 chunk 编号
+    3. 重新编号为 1, 2, 3...
+    4. 按出现顺序排序 chunks
+    5. 移除未引用的 chunks
+    """
+    pattern = r'\[引用\]\(#chunk-(\d+)\)'
+    matches = re.findall(pattern, answer)
+    
+    alt_pattern = r'【chunk-(\d+)】'
+    alt_matches = re.findall(alt_pattern, answer)
+    
+    # 匹配 [《doc_name》](#chunk-N) 或 [doc_name](#chunk-N) 格式
+    doc_pattern = r'\[《[^》]+》\]\(#chunk-(\d+)\)'
+    doc_matches = re.findall(doc_pattern, answer)
+    plain_pattern = r'\[[^\]]+\]\(#chunk-(\d+)\)'
+    plain_matches = re.findall(plain_pattern, answer)
+    
+    all_matches = matches + alt_matches + doc_matches + plain_matches
+    
+    seen = set()
+    cited_indices = []
+    for m in all_matches:
+        idx = int(m)
+        if idx not in seen and idx <= len(policy_chunks):
+            seen.add(idx)
+            cited_indices.append(idx)
+    
+    renumber_map = {}
+    for new_idx, old_idx in enumerate(cited_indices, 1):
+        renumber_map[old_idx] = new_idx
+    
+    processed_answer = answer
+    for old_idx, new_idx in renumber_map.items():
+        chunk = policy_chunks[old_idx - 1]
+        doc_name = chunk.get("source", "未知文档")
+        # 替换标准格式 [引用](#chunk-N) -> [doc_name](#chunk-M)
+        processed_answer = processed_answer.replace(
+            f'[引用](#chunk-{old_idx})',
+            f'[{doc_name}](#chunk-{new_idx})'
+        )
+        # 替换备用格式 【chunk-N】 -> [doc_name](#chunk-M)
+        processed_answer = processed_answer.replace(
+            f'【chunk-{old_idx}】',
+            f'[{doc_name}](#chunk-{new_idx})'
+        )
+        # 重新编号已有格式 [《xxx》](#chunk-N) 或 [xxx](#chunk-N) -> [doc_name](#chunk-M)
+        processed_answer = re.sub(
+            rf'\[《[^》]+》\]\(#chunk-{old_idx}\)',
+            f'[{doc_name}](#chunk-{new_idx})',
+            processed_answer
+        )
+        processed_answer = re.sub(
+            rf'\[[^\]]+\]\(#chunk-{old_idx}\)',
+            f'[{doc_name}](#chunk-{new_idx})',
+            processed_answer
+        )
+    
+    # 清理多余的右括号
+    processed_answer = re.sub(r'\]\(#chunk-\d+\)\]', '](#chunk-X)', processed_answer)
+    processed_answer = processed_answer.replace('](#chunk-X)', '](#chunk-1)')
+    
+    # 清理所有未处理的引用格式残留
+    processed_answer = re.sub(r'\[引用\]\(#chunk-\d+\)', '', processed_answer)
+    processed_answer = re.sub(r'【chunk-\d+】', '', processed_answer)
+    
+    # 删除末尾的"参考文件"部分（更精确匹配）
+    processed_answer = re.sub(
+        r'\n---+\n[\*\*]*(参考文件|参考文献)[\*\*]*[：:].*',
+        '',
+        processed_answer,
+        flags=re.DOTALL
+    )
+    
+    ordered_chunks = [policy_chunks[old_idx - 1] for old_idx in cited_indices]
+    
+    logger.info(f"[ReActAgent] Citation post-processing: {len(all_matches)} citations, {len(ordered_chunks)} chunks kept")
+    
+    return processed_answer, ordered_chunks
 
 
 def _build_messages(state: ElectricityAgentState) -> List:
@@ -94,17 +187,29 @@ def _build_messages(state: ElectricityAgentState) -> List:
         # 检查信息充足度
         sufficient_info = state.get("sufficient_info", False)
         sufficiency_reason = state.get("sufficiency_reason", "")
+        need_web_search = state.get("need_web_search", False)
+        retrieval_quality = state.get("retrieval_quality", {})
+        
+        # 检查是否需要 web_search 提示
+        has_web_search = any(r.get("tool_name") == "web_search" for r in state.get("tool_results", []))
+        web_hint = ""
+        if need_web_search and not has_web_search:
+            reason = retrieval_quality.get("reason", "结果不足")
+            web_hint = f"""
+
+【检索质量提示】知识库检索结果质量较低: {reason}
+建议调用 web_search 工具补充信息。"""
         
         if sufficient_info:
             # 强制生成答案
             reminder = f"""
-
+{web_hint}
 【系统提示】信息已充足: {sufficiency_reason}
 【重要】请直接基于上述工具结果生成完整答案，不要再调用任何工具！
 用户原始问题是: {query}"""
         else:
             reminder = f"""
-
+{web_hint}
 【重要提醒】用户原始问题是: {query}
 请基于上述工具结果，针对原始问题进行分析。如果结果不足以回答原始问题，可以继续调用工具；如果已经足够，请直接生成答案。"""
         messages.append(HumanMessage(content=reminder))
@@ -210,34 +315,24 @@ def react_agent_node(state: ElectricityAgentState) -> Dict[str, Any]:
                     elif hasattr(block, 'text'):
                         content += block.text
         
-        # 追加chunk引用部分（如果存在）
-        tool_results = state.get("tool_results", [])
-        for result in tool_results:
-            if result.get("tool_name") == "retrieve_policy" and result.get("success"):
-                try:
-                    output_data = json.loads(result.get("output", "{}"))
-                    if isinstance(output_data, dict):
-                        ref_links = output_data.get("chunk_ref_links", "")
-                        chunk_section = output_data.get("chunk_refs_section", "")
-                        
-                        if ref_links or chunk_section:
-                            content += "\n\n---\n\n" + ref_links
-                            content += "\n\n---\n\n## 参考材料原文\n\n" + chunk_section
-                            logger.info(f"[ReActAgent] Added chunk refs: links={len(ref_links)}, section={len(chunk_section)}")
-                        break
-                except json.JSONDecodeError:
-                    pass
+        # 后处理引用
+        policy_chunks = state.get("policy_chunks", [])
+        ordered_chunks = policy_chunks
+        if policy_chunks:
+            content, ordered_chunks = _fill_and_renumber_citations(content, policy_chunks)
         
-        logger.info(f"[ReActAgent] Final answer: {len(content)} chars")
+        logger.info(f"[ReActAgent] Final answer: {len(content)} chars, {len(ordered_chunks)} chunks")
         
         thoughts.append({
             "iteration": state["iteration_count"],
             "phase": "final_answer",
             "answer_length": len(content),
+            "chunks_kept": len(ordered_chunks),
         })
         
         return {
             "answer": content,
+            "policy_chunks": ordered_chunks,
             "done": True,
             "thoughts": thoughts,
             "confidence": 0.85,

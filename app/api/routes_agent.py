@@ -36,7 +36,7 @@ def get_db():
     "/chat",
     response_model=AgentResponse,
     summary="Agent Chat",
-    description="Process user query through PowerPolicyAgent with multi-turn conversation support.",
+    description="Process user query through ElectricityAgentGraph (LangGraph) with multi-turn conversation support.",
     responses={
         200: {
             "description": "Successful agent response",
@@ -61,7 +61,7 @@ def chat(
     dialog_manager = Depends(get_dialog_manager),
 ) -> AgentResponse:
     """
-    Process query through PowerPolicyAgent.
+    Process query through ElectricityAgentGraph (LangGraph).
     
     - Performs coreference resolution using conversation history
     - Routes query to appropriate tools based on intent

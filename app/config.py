@@ -87,9 +87,7 @@ class Settings:
     web_search_on_low_relevance: bool = _env("WEB_SEARCH_ON_LOW_RELEVANCE", "true").lower() == "true"
     coreference_resolution_enabled: bool = _env("COREFERENCE_RESOLUTION_ENABLED", "true").lower() == "true"
     coreference_resolution_method: str = _env("COREFERENCE_RESOLUTION_METHOD", "rule")
-    agent_use_react: bool = _env("AGENT_USE_REACT", "true").lower() == "true"
     agent_max_iterations: int = int(_env("AGENT_MAX_ITERATIONS", "5"))
-    agent_framework: str = _env("AGENT_FRAMEWORK", "langgraph")
     agent_tool_timeout: int = int(_env("AGENT_TOOL_TIMEOUT", "60"))
     tools_enabled: str = _env("TOOLS_ENABLED", "retrieve_policy,fetch_electricity_data,analyze_statistics,web_search")
     electricity_skills_url: str = _env("ELECTRICITY_SKILLS_URL", "")

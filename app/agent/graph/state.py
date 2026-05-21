@@ -23,6 +23,10 @@ class ElectricityAgentState(TypedDict):
     sufficient_info: bool
     sufficiency_reason: str
     
+    # 检索质量信息
+    retrieval_quality: Optional[Dict]
+    need_web_search: bool
+    
     policy_chunks: List[Dict]
     electricity_data: Optional[Dict]
     analysis_result: Optional[Dict]
@@ -67,6 +71,8 @@ def create_initial_state(
         "last_tool_calls": [],
         "sufficient_info": False,
         "sufficiency_reason": "",
+        "retrieval_quality": None,
+        "need_web_search": False,
         "policy_chunks": [],
         "electricity_data": None,
         "analysis_result": None,

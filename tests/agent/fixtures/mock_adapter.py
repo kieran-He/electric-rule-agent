@@ -64,7 +64,6 @@ class MockGraphInstance:
         self.data_adapter = data_adapter
         self.settings = settings or MagicMock()
         self.settings.tools_enabled_list = None
-        self.settings.agent_use_react = True
         self.settings.agent_max_iterations = 5
         self.settings.agent_tool_timeout = 30
         

@@ -26,7 +26,6 @@ def web_search(query: str, provinces: List[str] = None) -> str:
     """
     try:
         from app.agent.graph.electricity_agent_graph import _get_current_instance
-        from app.agent.tools.web_search_tool import WebSearchTool
         
         graph_instance = _get_current_instance()
         
@@ -39,8 +38,6 @@ def web_search(query: str, provinces: List[str] = None) -> str:
             })
         
         web_search_client = getattr(graph_instance, 'web_search_client', None)
-        llm_wrapper = getattr(graph_instance, 'llm_wrapper', None)
-        settings = getattr(graph_instance, 'settings', None)
         
         if not web_search_client or not web_search_client.is_available():
             logger.warning("[WebTool] Web search client not available")
@@ -50,25 +47,16 @@ def web_search(query: str, provinces: List[str] = None) -> str:
                 "source": "unavailable",
             })
         
-        web_tool = WebSearchTool(
-            web_search_client=web_search_client,
-            llm_wrapper=llm_wrapper,
-            settings=settings,
-        )
+        results = web_search_client.search(query)
+        formatted = web_search_client.format_results_for_context(results)
         
-        context = {
-            "province_codes": provinces or getattr(settings, 'default_province_codes', ["SN"]) or ["SN"],
-        }
-        
-        result = web_tool.execute(query, context)
-        
-        logger.info(f"[WebTool] Search completed, success={result.success}, confidence={result.confidence}")
+        logger.info(f"[WebTool] Search completed, found {len(results)} results")
         
         return json.dumps({
-            "success": result.success,
-            "output": result.output,
-            "confidence": result.confidence,
-            "metadata": result.metadata,
+            "success": True,
+            "output": formatted,
+            "confidence": 0.7,
+            "result_count": len(results),
             "source": "web_search",
         })
         

@@ -10,13 +10,6 @@ from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.agent.graph.state import ElectricityAgentState, create_initial_state
-from app.agent.graph.nodes import (
-    intent_classifier_node,
-    policy_retriever_node,
-    data_fetcher_node,
-    data_analyzer_node,
-    response_generator_node,
-)
 from app.agent.graph.nodes.react_agent_node import react_agent_node
 from app.agent.graph.nodes.tool_executor_node import tool_executor_node
 from app.agent.graph.handlers.iteration_control import IterationController
@@ -93,7 +86,6 @@ class ElectricityAgentGraph:
         self.settings = settings
         self.web_search_client = web_search_client
         
-        self.use_react = getattr(settings, 'agent_use_react', True)
         self.max_iterations = getattr(settings, 'agent_max_iterations', 5)
         self.tool_timeout = getattr(settings, 'agent_tool_timeout', 30)
         
@@ -106,87 +98,30 @@ class ElectricityAgentGraph:
         self.checkpointer = checkpointer or MemorySaver()
         self.app = self._graph.compile(checkpointer=self.checkpointer)
         
-        logger.info(f"ElectricityAgentGraph initialized (react={self.use_react}, max_iter={self.max_iterations})")
+        logger.info(f"ElectricityAgentGraph initialized (max_iter={self.max_iterations})")
     
     def _build_graph(self) -> StateGraph:
         workflow = StateGraph(ElectricityAgentState)
         
-        if self.use_react:
-            workflow.add_node("react_agent", react_agent_node)
-            workflow.add_node("tool_executor", tool_executor_node)
-            
-            workflow.set_entry_point("react_agent")
-            
-            workflow.add_conditional_edges(
-                "react_agent",
-                _should_continue,
-                {
-                    "tools": "tool_executor",
-                    "end": END,
-                }
-            )
-            workflow.add_edge("tool_executor", "react_agent")
-            
-            logger.info("[ElectricityAgent] ReAct graph built")
-        else:
-            workflow.add_node("intent_classifier", intent_classifier_node)
-            workflow.add_node("policy_retriever", policy_retriever_node)
-            workflow.add_node("data_fetcher", data_fetcher_node)
-            workflow.add_node("data_analyzer", data_analyzer_node)
-            workflow.add_node("response_generator", response_generator_node)
-            
-            workflow.set_entry_point("intent_classifier")
-            
-            workflow.add_conditional_edges(
-                "intent_classifier",
-                self._route_by_intent,
-                {
-                    "policy": "policy_retriever",
-                    "data": "data_fetcher",
-                    "analysis": "data_fetcher",
-                    "hybrid": "policy_retriever",
-                    "end": END,
-                }
-            )
-            
-            workflow.add_edge("data_fetcher", "data_analyzer")
-            workflow.add_edge("data_analyzer", "response_generator")
-            
-            workflow.add_conditional_edges(
-                "policy_retriever",
-                self._route_after_policy,
-                {
-                    "generate": "response_generator",
-                    "fetch_data": "data_fetcher",
-                }
-            )
-            
-            workflow.add_edge("response_generator", END)
-            
-            logger.info("[ElectricityAgent] Fixed routing graph built")
+        workflow.add_node("react_agent", react_agent_node)
+        workflow.add_node("tool_executor", tool_executor_node)
+        
+        workflow.set_entry_point("react_agent")
+        
+        workflow.add_conditional_edges(
+            "react_agent",
+            _should_continue,
+            {
+                "tools": "tool_executor",
+                "end": END,
+            }
+        )
+        workflow.add_edge("tool_executor", "react_agent")
+        
+        logger.info("[ElectricityAgent] ReAct graph built")
         
         return workflow
     
-    def _route_after_policy(self, state: ElectricityAgentState) -> str:
-        intent = state.get("intent", "hybrid")
-        if intent == "hybrid":
-            return "fetch_data"
-        return "generate"
-
-    def _route_by_intent(self, state: ElectricityAgentState) -> str:
-        intent = state.get("intent", "hybrid")
-        
-        if intent == "policy_query":
-            return "policy"
-        elif intent == "data_query":
-            return "data"
-        elif intent == "analysis":
-            return "analysis"
-        elif intent == "hybrid":
-            return "hybrid"
-        else:
-            return "end"
-
     def run(
         self,
         query: str,
@@ -218,7 +153,6 @@ class ElectricityAgentGraph:
         
         logger.info(f"[ElectricityAgent] Run completed in {elapsed:.2f}s, iterations={result.get('iteration_count', 0)}")
         
-        # 处理超时无答案的情况
         answer = result.get("answer", "")
         if not answer and result.get("tool_results"):
             logger.warning("[ElectricityAgent] No final answer but has tool results, generating fallback response")
@@ -349,8 +283,7 @@ class ElectricityAgentGraph:
     def get_stats(self) -> Dict[str, Any]:
         return {
             "framework": "langgraph",
-            "react_mode": self.use_react,
             "max_iterations": self.max_iterations,
-            "nodes": ["react_agent", "tool_executor"] if self.use_react else ["intent_classifier", "policy_retriever", "data_fetcher", "data_analyzer", "response_generator"],
+            "nodes": ["react_agent", "tool_executor"],
             "data_adapter": type(self.data_adapter).__name__,
         }

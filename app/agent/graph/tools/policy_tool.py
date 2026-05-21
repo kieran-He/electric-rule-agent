@@ -55,12 +55,29 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
                 for chunk in chunks
             ]
             
+            formatted_chunks = ""
+            for i, chunk in enumerate(policy_chunks, 1):
+                doc_name = chunk.get("source", "未知文档")
+                title_path = chunk.get("title_path", "")
+                content = chunk.get("content", "")
+                formatted_chunks += f"\n\n[chunk-{i}] 《{doc_name}》\n"
+                if title_path:
+                    formatted_chunks += f"章节: {title_path}\n"
+                formatted_chunks += f"内容: {content}\n"
+            
             logger.info(f"[PolicyTool] Retrieved {len(policy_chunks)} chunks from orchestrator")
             
             if policy_chunks:
                 result = {
                     "chunks": policy_chunks,
                     "detected_codes": detected_codes,
+                    "formatted_chunks": formatted_chunks,
+                    "quality": {
+                        "is_low_quality": quality.is_low_quality,
+                        "reason": quality.quality_reason,
+                        "avg_score": quality.avg_score,
+                        "chunk_count": quality.chunk_count,
+                    }
                 }
                 return json.dumps(result, ensure_ascii=False)
         

@@ -34,6 +34,8 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     policy_chunks = []
     electricity_data = None
     chart_paths = []
+    retrieval_quality = None
+    need_web_search = False
     
     for tc in tool_calls:
         tool_name = tc.get("name", "")
@@ -66,11 +68,18 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                 show_chunks = state.get("context", {}).get("show_chunks", True)
                 output = tool_func.invoke({"query": query, "provinces": provinces, "show_chunks": show_chunks})
                 
-                # 解析并保存policy_chunks
                 try:
                     result_data = json.loads(output) if output else {}
                     if isinstance(result_data, dict) and "chunks" in result_data:
                         policy_chunks = result_data["chunks"]
+                        retrieval_quality = result_data.get("quality")
+                        formatted_chunks = result_data.get("formatted_chunks", "")
+                        if retrieval_quality:
+                            if retrieval_quality.get("is_low_quality") or retrieval_quality.get("chunk_count", 0) < 3:
+                                need_web_search = True
+                                logger.info(f"[ToolExecutor] Low quality retrieval, suggesting web_search: {retrieval_quality}")
+                        if formatted_chunks:
+                            output = formatted_chunks
                 except json.JSONDecodeError:
                     pass
                 
@@ -148,6 +157,8 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
         "policy_chunks": policy_chunks,
         "electricity_data": electricity_data,
         "chart_paths": chart_paths,
+        "retrieval_quality": retrieval_quality,
+        "need_web_search": need_web_search,
     }
     
     if sufficiency_info.get("sufficient"):

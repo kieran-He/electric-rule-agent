@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Optional, TYPE_CHECKING, Union
+from typing import Any, Optional, TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from app.agent.power_policy_agent import PowerPolicyAgent
 from app.agent.graph.electricity_agent_graph import ElectricityAgentGraph
 from app.agent.adapters.electricity_data_adapter import create_data_adapter
 from app.agent.graph.checkpointer.db_checkpointer import DbCheckpointer
@@ -31,12 +30,11 @@ class AgentSingleton:
             with cls._lock:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
-                    cls._instance._agent: Optional[Union[PowerPolicyAgent, ElectricityAgentGraph]] = None
+                    cls._instance._agent: Optional[ElectricityAgentGraph] = None
                     cls._instance._settings: Optional["Settings"] = None
-                    cls._instance._framework: str = "react"
         return cls._instance
     
-    def preload(self, settings: "Settings") -> Union[PowerPolicyAgent, ElectricityAgentGraph]:
+    def preload(self, settings: "Settings") -> ElectricityAgentGraph:
         if self._agent is not None:
             logger.debug("Agent already preloaded")
             return self._agent
@@ -55,48 +53,32 @@ class AgentSingleton:
                     disable_thinking=True,
                 )
                 
-                framework = getattr(settings, 'agent_framework', 'langgraph')
-                self._framework = framework
+                data_adapter = create_data_adapter(settings)
+                web_search_client = create_web_search_client(settings)
+                checkpointer = DbCheckpointer(SessionLocal)
                 
-                if framework == "langgraph":
-                    data_adapter = create_data_adapter(settings)
-                    web_search_client = create_web_search_client(settings)
-                    checkpointer = DbCheckpointer(SessionLocal)
-                    
-                    try:
-                        with SessionLocal() as db:
-                            db.query(LangGraphCheckpoint).limit(1).first()
-                        logger.info("DbCheckpointer database connection verified")
-                    except Exception as e:
-                        logger.warning(f"DbCheckpointer connection test failed: {e}")
-                    
-                    self._agent = ElectricityAgentGraph(
-                        llm_wrapper=llm_wrapper,
-                        orchestrator=orchestrator,
-                        data_adapter=data_adapter,
-                        settings=settings,
-                        web_search_client=web_search_client,
-                        checkpointer=checkpointer,
-                    )
-                    logger.info(f"ElectricityAgentGraph preloaded (LangGraph framework with DbCheckpointer)")
-                else:
-                    web_search_client = create_web_search_client(settings)
-                    
-                    self._agent = PowerPolicyAgent(
-                        orchestrator=orchestrator,
-                        llm_wrapper=llm_wrapper,
-                        settings=settings,
-                        web_search_client=web_search_client,
-                        use_react=settings.agent_use_react,
-                        max_iterations=settings.agent_max_iterations,
-                    )
-                    logger.info(f"PowerPolicyAgent preloaded (ReAct framework)")
+                try:
+                    with SessionLocal() as db:
+                        db.query(LangGraphCheckpoint).limit(1).first()
+                    logger.info("DbCheckpointer database connection verified")
+                except Exception as e:
+                    logger.warning(f"DbCheckpointer connection test failed: {e}")
+                
+                self._agent = ElectricityAgentGraph(
+                    llm_wrapper=llm_wrapper,
+                    orchestrator=orchestrator,
+                    data_adapter=data_adapter,
+                    settings=settings,
+                    web_search_client=web_search_client,
+                    checkpointer=checkpointer,
+                )
+                logger.info(f"ElectricityAgentGraph preloaded (LangGraph framework with DbCheckpointer)")
                 
                 self._settings = settings
         
         return self._agent
     
-    def get_agent(self, db: Session) -> Union[PowerPolicyAgent, ElectricityAgentGraph]:
+    def get_agent(self, db: Session) -> ElectricityAgentGraph:
         if self._agent is None:
             raise RuntimeError("Agent not preloaded. Call preload() first.")
         
@@ -104,28 +86,20 @@ class AgentSingleton:
             self._agent._orchestrator.db = db
         return self._agent
     
-    def get_framework(self) -> str:
-        return self._framework
-    
-    def is_langgraph(self) -> bool:
-        return self._framework == "langgraph"
-    
     def is_loaded(self) -> bool:
-        """Check if agent is preloaded."""
         return self._agent is not None
     
     def get_stats(self) -> dict:
         if self._agent:
             if hasattr(self._agent, 'get_stats'):
                 return self._agent.get_stats()
-            return {"framework": self._framework, "loaded": True}
+            return {"framework": "langgraph", "loaded": True}
         return {"loaded": False}
     
     def clear(self) -> None:
         with self._lock:
             self._agent = None
             self._settings = None
-            self._framework = "react"
 
 
 agent_singleton = AgentSingleton()
