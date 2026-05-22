@@ -2,6 +2,11 @@ from typing import TypedDict, List, Dict, Any, Optional, Annotated
 from langgraph.graph.message import add_messages
 
 
+def add_lists(left: List, right: List) -> List:
+    """Reducer that concatenates lists."""
+    return left + right
+
+
 class ElectricityAgentState(TypedDict):
     messages: Annotated[List[Dict], add_messages]
     query: str

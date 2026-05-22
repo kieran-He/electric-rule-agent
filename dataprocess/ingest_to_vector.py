@@ -87,7 +87,7 @@ def _embed_texts(texts: list[str], model_name: str) -> list[list[float]]:
         return _deterministic_embed(texts)
 
 
-def _deterministic_embed(texts: list[str], dimension: int = 384) -> list[list[float]]:
+def _deterministic_embed(texts: list[str], dimension: int = 512) -> list[list[float]]:
     import hashlib
     import math
     

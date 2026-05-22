@@ -9,8 +9,6 @@ logger = logging.getLogger(__name__)
 
 # 信息充足判断阈值
 SUFFICIENCY_THRESHOLDS = {
-    "policy_output_min_length": 1500,  # 政策检索结果最小长度
-    "web_output_min_length": 500,      # 网络搜索结果最小长度
     "max_iterations_before_force_stop": 2,  # 强制停止的最大迭代次数
 }
 
@@ -73,11 +71,22 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                     if isinstance(result_data, dict) and "chunks" in result_data:
                         policy_chunks = result_data["chunks"]
                         retrieval_quality = result_data.get("quality")
+                        actual_province_codes = result_data.get("actual_province_codes", [])
+                        tool_provinces = tool_args.get("provinces", [])
+                        requested_provinces = tool_provinces if tool_provinces else state.get("provinces", [])
                         formatted_chunks = result_data.get("formatted_chunks", "")
+                        
                         if retrieval_quality:
                             if retrieval_quality.get("is_low_quality") or retrieval_quality.get("chunk_count", 0) < 3:
                                 need_web_search = True
                                 logger.info(f"[ToolExecutor] Low quality retrieval, suggesting web_search: {retrieval_quality}")
+                        
+                        # 检测省份缺失：返回的 chunks 来自哪些省份，与请求的省份对比
+                        missing_provinces = [p for p in requested_provinces if p not in actual_province_codes]
+                        if missing_provinces:
+                            need_web_search = True
+                            logger.info(f"[ToolExecutor] Missing provinces detected: {missing_provinces}, actual: {actual_province_codes}, suggesting web_search")
+                        
                         if formatted_chunks:
                             output = formatted_chunks
                 except json.JSONDecodeError:
@@ -150,16 +159,29 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     
     sufficiency_info = _check_sufficiency(all_tool_results, iteration_count)
     
+    # 如果需要web_search，不认为信息充足
+    if need_web_search:
+        sufficiency_info["sufficient"] = False
+        sufficiency_info["reason"] = f"需要补充信息: {sufficiency_info.get('reason', '')}"
+    
     result = {
         "tool_results": tool_results,
         "tool_calls": [],
         "errors": state.get("errors", []) + errors,
-        "policy_chunks": policy_chunks,
         "electricity_data": electricity_data,
         "chart_paths": chart_paths,
         "retrieval_quality": retrieval_quality,
         "need_web_search": need_web_search,
     }
+    
+    if policy_chunks:
+        result["policy_chunks"] = policy_chunks
+        logger.info(f"[ToolExecutor] Returning policy_chunks: {len(policy_chunks)}")
+    else:
+        existing_chunks = state.get("policy_chunks", [])
+        if existing_chunks:
+            result["policy_chunks"] = existing_chunks
+            logger.info(f"[ToolExecutor] Keeping existing policy_chunks: {len(existing_chunks)}")
     
     if sufficiency_info.get("sufficient"):
         logger.info(f"[ToolExecutor] Information sufficient: {sufficiency_info.get('reason')}")
@@ -176,54 +198,26 @@ def _check_sufficiency(tool_results: list, iteration_count: int) -> Dict[str, An
     Returns:
         Dict with 'sufficient' bool and 'reason' string
     """
-    # 收集各工具的结果长度
-    policy_length = 0
-    web_length = 0
-    data_available = False
     tools_used = set()
     
     for result in tool_results:
         if result.get("success"):
             tool_name = result.get("tool_name", "")
-            output = result.get("output", "")
-            output_len = len(output) if output else 0
             tools_used.add(tool_name)
-            
-            if tool_name == "retrieve_policy":
-                policy_length += output_len
-            elif tool_name == "web_search":
-                web_length += output_len
-            elif tool_name == "fetch_electricity_data":
-                data_available = output_len > 0
     
-    # 判断条件
     reasons = []
     
-    # 条件1: 政策检索结果足够长
-    if policy_length >= SUFFICIENCY_THRESHOLDS["policy_output_min_length"]:
-        reasons.append(f"政策检索结果充足({policy_length}字符)")
-    
-    # 条件2: 已执行了政策检索和网络搜索
     if "retrieve_policy" in tools_used and "web_search" in tools_used:
         reasons.append("已完成政策检索和网络搜索")
     
-    # 条件3: 政策+网络结果总量足够
-    total_length = policy_length + web_length
-    if total_length >= 2000:
-        reasons.append(f"总信息量充足({total_length}字符)")
-    
-    # 条件4: 迭代次数达到阈值，强制停止
     if iteration_count >= SUFFICIENCY_THRESHOLDS["max_iterations_before_force_stop"]:
         reasons.append(f"已达到{iteration_count}轮迭代，建议生成答案")
     
-    # 判断是否充足
     sufficient = len(reasons) > 0
     
     return {
         "sufficient": sufficient,
         "reason": "; ".join(reasons) if reasons else "信息不足",
-        "policy_length": policy_length,
-        "web_length": web_length,
         "tools_used": list(tools_used),
     }
 

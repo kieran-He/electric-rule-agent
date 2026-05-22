@@ -21,7 +21,7 @@ class RepositoryError(RuntimeError):
 
 
 class DeterministicEmbedder:
-    def __init__(self, dimension: int = 384):
+    def __init__(self, dimension: int = 512):
         self.dimension = dimension
 
     def encode(self, texts: List[str], normalize_embeddings: bool = True) -> List[List[float]]:
