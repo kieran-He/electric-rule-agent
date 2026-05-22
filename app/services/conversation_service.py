@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import datetime
 from typing import Callable
 
@@ -11,6 +12,7 @@ from app.db.models.conversation_turn import ConversationTurn
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.conversation_turn_repo import ConversationTurnRepository
 from app.services.history_summarizer import HistorySummarizer
+from app.services.title_generator import TitleGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +23,14 @@ class ConversationService:
         session_factory: Callable[[], Session],
         max_history_turns: int = 4,
         enable_summary: bool = True,
+        enable_title_generation: bool = True,
     ):
         self.session_factory = session_factory
         self.max_history_turns = max_history_turns
         self.enable_summary = enable_summary
+        self.enable_title_generation = enable_title_generation
         self.summarizer = HistorySummarizer() if enable_summary else None
+        self.title_generator = TitleGenerator() if enable_title_generation else None
 
     def get_or_create(self, session_id: str) -> ConversationState:
         with self.session_factory() as db:
@@ -177,3 +182,82 @@ class ConversationService:
                 state_repo.upsert(state)
             
             db.commit()
+    
+    def exists(self, session_id: str) -> bool:
+        """Check if session exists in database."""
+        with self.session_factory() as db:
+            repo = ConversationRepository(db)
+            return repo.get(session_id) is not None
+    
+    def is_new_session(self, session_id: str) -> bool:
+        """Check if session has no conversation turns."""
+        with self.session_factory() as db:
+            turn_repo = ConversationTurnRepository(db)
+            return turn_repo.count_turns(session_id) == 0
+    
+    def get_turn_count(self, session_id: str) -> int:
+        """Get number of conversation turns for a session."""
+        with self.session_factory() as db:
+            turn_repo = ConversationTurnRepository(db)
+            return turn_repo.count_turns(session_id)
+    
+    def get_title(self, session_id: str) -> str | None:
+        """Get stored title for a session."""
+        with self.session_factory() as db:
+            repo = ConversationRepository(db)
+            state = repo.get(session_id)
+            return state.title if state else None
+    
+    def generate_title(self, session_id: str) -> str:
+        """
+        Generate and store title for session based on first conversation turn.
+        
+        Returns:
+            Generated title string
+        """
+        history = self.get_history(session_id)
+        
+        if not history:
+            return "新对话"
+        
+        if self.title_generator and self.title_generator.is_available():
+            title = self.title_generator.generate(history)
+        else:
+            for entry in history:
+                if entry.startswith("Q: "):
+                    title = entry[3:][:20]
+                    break
+            else:
+                title = "新对话"
+        
+        with self.session_factory() as db:
+            repo = ConversationRepository(db)
+            state = repo.get(session_id)
+            if state:
+                state.title = title
+                state.title_generated_at = datetime.utcnow()
+                repo.upsert(state)
+                db.commit()
+        
+        return title
+    
+    def create_session(self, session_id: str | None = None, channel: str = "api") -> tuple[str, bool]:
+        """
+        Create a new session or return existing one.
+        
+        Args:
+            session_id: Optional session ID. If None, generates one.
+            channel: Channel identifier for generated session ID.
+            
+        Returns:
+            Tuple of (session_id, is_new)
+        """
+        if session_id is None:
+            session_id = f"{channel}:{uuid.uuid4().hex[:12]}"
+        
+        is_new = not self.exists(session_id)
+        
+        if is_new:
+            self.get_or_create(session_id)
+        
+        return session_id, is_new

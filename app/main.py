@@ -14,6 +14,7 @@ from app.api.routes_feishu import router as feishu_router
 from app.api.routes_ingest import router as ingest_router
 from app.api.routes_metrics import router as metrics_router
 from app.api.routes_query import router as query_router
+from app.api.routes_session import router as session_router
 from app.config import settings
 from app.core.exceptions import AppError
 from app.core.logger import configure_logging
@@ -62,6 +63,7 @@ app.include_router(metrics_router)
 app.include_router(evaluation_router)
 app.include_router(feedback_router)
 app.include_router(feishu_router)
+app.include_router(session_router)
 
 
 @app.exception_handler(AppError)
