@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.db.models.conversation_turn import ConversationTurn
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.repositories.conversation_turn_repo import ConversationTurnRepository
 from app.services.history_summarizer import HistorySummarizer
+from app.services.title_generator import TitleGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +22,13 @@ class ConversationService:
         session_factory: Callable[[], Session],
         max_history_turns: int = 4,
         enable_summary: bool = True,
+        title_generator: Optional[TitleGenerator] = None,
     ):
         self.session_factory = session_factory
         self.max_history_turns = max_history_turns
         self.enable_summary = enable_summary
         self.summarizer = HistorySummarizer() if enable_summary else None
+        self.title_generator = title_generator
 
     def get_or_create(self, session_id: str) -> ConversationState:
         with self.session_factory() as db:
@@ -177,3 +180,26 @@ class ConversationService:
                 state_repo.upsert(state)
             
             db.commit()
+    
+    def get_turn_count(self, session_id: str) -> int:
+        """Get the number of turns in a conversation."""
+        with self.session_factory() as db:
+            turn_repo = ConversationTurnRepository(db)
+            return turn_repo.count_turns(session_id)
+    
+    def get_title(self, session_id: str) -> Optional[str]:
+        """Get the title of a conversation session."""
+        with self.session_factory() as db:
+            state_repo = ConversationRepository(db)
+            state = state_repo.get(session_id)
+            return state.title if state else None
+    
+    def update_title(self, session_id: str, title: str):
+        """Update the title of a conversation session."""
+        with self.session_factory() as db:
+            state_repo = ConversationRepository(db)
+            state = state_repo.get(session_id)
+            if state:
+                state.title = title
+                state_repo.upsert(state)
+                db.commit()

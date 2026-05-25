@@ -22,9 +22,16 @@ REACT_SYSTEM_PROMPT = """你是一个电力市场分析助手，能够使用工�
 - fetch_electricity_data 目前只支持陕西省(SN)的数据查询
 - 如果用户询问其他省份的数据，请告知当前只支持陕西数据
 
+省份代码对照（重要）:
+- 陕西 = SN, 山西 = SX, 山东 = SD
+- 河南 = HA, 湖北 = HB, 湖南 = HN
+- 江苏 = JS, 浙江 = ZJ, 安徽 = AH
+- 北京 = BJ, 上海 = SH, 广东 = GD
+- 其他省份请参考此格式使用两位大写字母代码
+
 工具调用规则（重要）:
 - retrieve_policy 和 web_search：只需要调用工具，无需提供query参数（系统会自动使用用户原始问题）
-- provinces参数：如果问题明确提到省份，提供省份代码（如["SN", "SD"]）；否则可省略，系统会自动推断
+- provinces参数：如果问题明确提到省份，提供正确的省份代码（如["SN", "HA"]）；否则可省略，系统会自动推断
 - fetch_electricity_data：需要提供 metric 参数（load/generation/price/new_energy）
 
 工作流程:

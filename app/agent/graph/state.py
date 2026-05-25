@@ -27,6 +27,7 @@ class ElectricityAgentState(TypedDict):
     electricity_data: Optional[Dict]
     analysis_result: Optional[Dict]
     chart_paths: List[str]
+    missing_provinces: List[str]
     
     answer: str
     citations: List[Dict]
@@ -71,6 +72,7 @@ def create_initial_state(
         "electricity_data": None,
         "analysis_result": None,
         "chart_paths": [],
+        "missing_provinces": [],
         "answer": "",
         "citations": [],
         "confidence": 0.0,

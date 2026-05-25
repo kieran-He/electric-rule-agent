@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Dict, Any
 
+from dataprocess.province_mapping import PROVINCE_CODE_ALIASES as PROVINCE_CODE_NAME
 from langchain_core.tools import tool
 
 from app.agent.graph.tools.mock_data import generate_mock_policy_chunks
@@ -24,9 +25,13 @@ def retrieve_policy(query: str, provinces: List[str]) -> str:
         
     Returns:
         JSON string containing list of relevant policy chunks with content,
-        source, title_path, and score fields
+        source, title_path, and score fields, plus metadata about province coverage
     """
     logger.info(f"[PolicyTool] Retrieving policy for query: {query}, provinces: {provinces}")
+    
+    province_coverage = {}
+    for code in provinces:
+        province_coverage[code] = 0
     
     try:
         from app.agent.graph.electricity_agent_graph import _get_current_instance
@@ -41,6 +46,13 @@ def retrieve_policy(query: str, provinces: List[str]) -> str:
                 top_k=8,
             )
             
+            for chunk in chunks:
+                source = chunk.metadata.get("source_name", "")
+                for code in provinces:
+                    province_name = PROVINCE_CODE_NAME.get(code, "")
+                    if province_name in source:
+                        province_coverage[code] += 1
+            
             policy_chunks = [
                 {
                     "content": chunk.text,
@@ -52,9 +64,21 @@ def retrieve_policy(query: str, provinces: List[str]) -> str:
             ]
             
             logger.info(f"[PolicyTool] Retrieved {len(policy_chunks)} chunks from orchestrator")
+            logger.info(f"[PolicyTool] Province coverage: {province_coverage}")
+            
+            missing_provinces = [
+                PROVINCE_CODE_NAME.get(code, code) 
+                for code, count in province_coverage.items() 
+                if count == 0
+            ]
             
             if policy_chunks:
-                return json.dumps(policy_chunks, ensure_ascii=False)
+                return json.dumps({
+                    "chunks": policy_chunks,
+                    "province_coverage": province_coverage,
+                    "missing_provinces": missing_provinces,
+                    "detected_codes": detected_codes,
+                }, ensure_ascii=False)
         
     except Exception as e:
         logger.warning(f"[PolicyTool] Orchestrator retrieval failed: {e}, using mock data")
@@ -62,4 +86,9 @@ def retrieve_policy(query: str, provinces: List[str]) -> str:
     mock_chunks = generate_mock_policy_chunks(query, provinces)
     logger.info(f"[PolicyTool] Using mock data: {len(mock_chunks)} chunks")
     
-    return json.dumps(mock_chunks, ensure_ascii=False)
+    return json.dumps({
+        "chunks": mock_chunks,
+        "province_coverage": province_coverage,
+        "missing_provinces": list(PROVINCE_CODE_NAME.get(code, code) for code in provinces),
+        "detected_codes": provinces,
+    }, ensure_ascii=False)
