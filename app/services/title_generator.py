@@ -6,9 +6,10 @@ Uses LLM to generate concise titles from conversation content.
 from __future__ import annotations
 
 import logging
-from typing import List
+from typing import List, Optional, TYPE_CHECKING
 
-from app.langchain.llm import MiniMaxLLMWrapper
+if TYPE_CHECKING:
+    from app.langchain.llm import MiniMaxLLMWrapper
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +25,15 @@ class TitleGenerator:
 
     def __init__(
         self,
-        llm_wrapper: MiniMaxLLMWrapper = None,
+        llm_wrapper: Optional["MiniMaxLLMWrapper"] = None,
         max_title_length: int = 20,
     ):
-        self.llm = llm_wrapper or MiniMaxLLMWrapper()
+        self.llm = llm_wrapper
         self.max_title_length = max_title_length
+    
+    def is_available(self) -> bool:
+        """Check if title generator is available."""
+        return self.llm is not None
     
     def generate(self, history: List[str]) -> str:
         """
@@ -42,6 +47,10 @@ class TitleGenerator:
         """
         if not history:
             return "新对话"
+        
+        if not self.is_available():
+            logger.warning("[TitleGenerator] LLM not available, using fallback")
+            return self._fallback_title(history)
         
         user_query = None
         bot_reply = None
@@ -76,8 +85,7 @@ class TitleGenerator:
             
         except Exception as e:
             logger.warning(f"Title generation failed: {e}, using fallback")
-            
-            return user_query[:self.max_title_length] if user_query else "新对话"
+            return self._fallback_title(history)
     
     def _build_prompt(self, user_query: str, bot_reply: str | None) -> str:
         """Build prompt for title generation."""
@@ -86,6 +94,12 @@ class TitleGenerator:
             return f"用户问题：{user_query}\n回答摘要：{reply_snippet}\n\n请生成一个简短的标题（不超过20字）："
         return f"用户问题：{user_query}\n\n请生成一个简短的标题（不超过20字）："
     
-    def is_available(self) -> bool:
-        """Check if title generator is available."""
-        return self.llm is not None
+    def _fallback_title(self, history: List[str]) -> str:
+        """Fallback title generation when LLM is unavailable."""
+        for entry in history:
+            if entry.startswith("Q: "):
+                question = entry[3:].strip()
+                if len(question) <= self.max_title_length:
+                    return question
+                return question[:self.max_title_length]
+        return "新对话"

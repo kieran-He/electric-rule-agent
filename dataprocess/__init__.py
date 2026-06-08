@@ -26,6 +26,7 @@ from dataprocess.pipeline import (
 from dataprocess.metadata_extractor import (
     extract_metadata,
     file_sha256,
+    extract_issuer,
 )
 from dataprocess.pdf_parser import parse_pdf, parse_pdf_ocr
 from dataprocess.docx_parser import parse_docx
@@ -65,6 +66,7 @@ __all__ = [
     "enforce_clause_quality",
     "extract_metadata",
     "file_sha256",
+    "extract_issuer",
     "parse_pdf",
     "parse_pdf_ocr",
     "parse_docx",

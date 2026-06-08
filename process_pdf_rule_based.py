@@ -79,7 +79,8 @@ def process_pdf_rule_based(
     metadata = extract_metadata(
         file_path=str(path),
         file_hash=file_hash,
-        province_code_override=province_code
+        province_code_override=province_code,
+        doc_text=marked_text[:500],
     )
     
     print(f"[5/5] 规则标签提取...")
@@ -94,8 +95,7 @@ def process_pdf_rule_based(
             province_code=province_code,
             doc_type=metadata.doc_type,
             doc_status=metadata.status,
-            doc_market_type=metadata.market_type,
-            doc_subject_scope=list(metadata.subject_scope),
+            doc_issuer=metadata.issuer,
             title_path=f"chunk_{i+1}",
             clause_text=chunk["text"],
             clause_summary=chunk["text"][:50] if len(chunk["text"]) > 50 else chunk["text"],

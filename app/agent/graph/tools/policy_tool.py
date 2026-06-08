@@ -2,6 +2,7 @@ import json
 import logging
 from typing import List, Dict, Any
 
+from dataprocess.province_mapping import PROVINCE_CODE_ALIASES as PROVINCE_CODE_NAME
 from langchain_core.tools import tool
 
 from app.agent.graph.tools.mock_data import generate_mock_policy_chunks
@@ -27,9 +28,13 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
         
     Returns:
         JSON string containing list of relevant policy chunks with content,
-        source, title_path, and score fields
+        source, title_path, and score fields, plus metadata about province coverage
     """
     logger.info(f"[PolicyTool] Retrieving policy for query: {query}, provinces: {provinces}, show_chunks: {show_chunks}")
+    
+    province_coverage = {}
+    for code in provinces:
+        province_coverage[code] = 0
     
     try:
         from app.agent.graph.electricity_agent_graph import _get_current_instance
@@ -43,6 +48,13 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
                 province_codes=provinces,
                 top_k=8,
             )
+            
+            for chunk in chunks:
+                source = chunk.metadata.get("source_name", "")
+                for code in provinces:
+                    province_name = PROVINCE_CODE_NAME.get(code, "")
+                    if province_name in source:
+                        province_coverage[code] += 1
             
             policy_chunks = [
                 {
@@ -58,7 +70,6 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
                 for chunk in chunks
             ]
             
-            # 计算实际返回的 chunks 来自哪些省份
             actual_province_codes = set(
                 chunk.get("province_code", "").upper() 
                 for chunk in policy_chunks 
@@ -75,7 +86,14 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
                     formatted_chunks += f"章节: {title_path}\n"
                 formatted_chunks += f"内容: {content}\n"
             
+            missing_provinces = [
+                PROVINCE_CODE_NAME.get(code, code) 
+                for code, count in province_coverage.items() 
+                if count == 0
+            ]
+            
             logger.info(f"[PolicyTool] Retrieved {len(policy_chunks)} chunks from orchestrator, actual provinces: {actual_province_codes}")
+            logger.info(f"[PolicyTool] Province coverage: {province_coverage}, missing: {missing_provinces}")
             
             if policy_chunks:
                 result = {
@@ -83,6 +101,8 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
                     "detected_codes": detected_codes,
                     "actual_province_codes": list(actual_province_codes),
                     "formatted_chunks": formatted_chunks,
+                    "province_coverage": province_coverage,
+                    "missing_provinces": missing_provinces,
                     "quality": {
                         "is_low_quality": quality.is_low_quality,
                         "reason": quality.quality_reason,
@@ -98,4 +118,9 @@ def retrieve_policy(query: str, provinces: List[str], show_chunks: bool = True) 
     mock_chunks = generate_mock_policy_chunks(query, provinces)
     logger.info(f"[PolicyTool] Using mock data: {len(mock_chunks)} chunks")
     
-    return json.dumps(mock_chunks, ensure_ascii=False)
+    return json.dumps({
+        "chunks": mock_chunks,
+        "province_coverage": province_coverage,
+        "missing_provinces": list(PROVINCE_CODE_NAME.get(code, code) for code in provinces),
+        "detected_codes": provinces,
+    }, ensure_ascii=False)

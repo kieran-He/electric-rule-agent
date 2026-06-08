@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import datetime
-from typing import Callable
+from typing import Callable, Optional
 
 from sqlalchemy.orm import Session
 
@@ -23,14 +23,13 @@ class ConversationService:
         session_factory: Callable[[], Session],
         max_history_turns: int = 4,
         enable_summary: bool = True,
-        enable_title_generation: bool = True,
+        title_generator: Optional[TitleGenerator] = None,
     ):
         self.session_factory = session_factory
         self.max_history_turns = max_history_turns
         self.enable_summary = enable_summary
-        self.enable_title_generation = enable_title_generation
+        self.title_generator = title_generator
         self.summarizer = HistorySummarizer() if enable_summary else None
-        self.title_generator = TitleGenerator() if enable_title_generation else None
 
     def get_or_create(self, session_id: str) -> ConversationState:
         with self.session_factory() as db:
@@ -207,6 +206,16 @@ class ConversationService:
             repo = ConversationRepository(db)
             state = repo.get(session_id)
             return state.title if state else None
+    
+    def update_title(self, session_id: str, title: str):
+        """Update the title of a conversation session."""
+        with self.session_factory() as db:
+            state_repo = ConversationRepository(db)
+            state = state_repo.get(session_id)
+            if state:
+                state.title = title
+                state_repo.upsert(state)
+                db.commit()
     
     def generate_title(self, session_id: str) -> str:
         """

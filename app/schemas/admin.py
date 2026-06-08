@@ -9,6 +9,7 @@ class DocumentAdminItem(BaseModel):
     doc_type: str
     status: str
     province_code: str
+    issuer: str | None = None
     version_name: str | None = None
     is_current: bool
 

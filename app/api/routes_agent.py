@@ -6,11 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.agent.agent_singleton import agent_singleton
-from app.core.dependency import get_dialog_manager
+from app.core.dependency import get_dialog_manager, get_benchmark_service, get_title_generator, get_conversation_service
 from app.core.exceptions import AppError
 from app.core.logging_context import set_trace_id, set_session_id
 from app.db.session import SessionLocal
-from app.schemas.agent import AgentRequest, AgentResponse
+from app.schemas.agent import AgentRequest, AgentResponse, BenchmarkResponse, TitleRequest, TitleResponse
+from app.services.benchmark_service import BenchmarkService
+from app.services.conversation_service import ConversationService
+from app.services.title_generator import TitleGenerator
 
 
 router = APIRouter(
@@ -109,3 +112,64 @@ def chat(
                 detail="Agent not ready. Please try again later."
             ) from exc
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get(
+    "/benchmark",
+    response_model=BenchmarkResponse,
+    summary="Get Benchmark Questions",
+    description="Get random benchmark questions for testing.",
+)
+def get_benchmark_questions(
+    benchmark_service: BenchmarkService = Depends(get_benchmark_service),
+) -> BenchmarkResponse:
+    questions = benchmark_service.get_random_questions(count=5)
+    return BenchmarkResponse(
+        questions=[
+            {
+                "question_id": q.get("question_id"),
+                "question": q.get("question", ""),
+                "category": q.get("category"),
+            }
+            for q in questions
+        ]
+    )
+
+
+@router.post(
+    "/title",
+    response_model=TitleResponse,
+    summary="Generate Session Title",
+    description="Generate a title for a conversation session based on its history.",
+)
+def generate_title(
+    req: TitleRequest,
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    title_generator: TitleGenerator = Depends(get_title_generator),
+) -> TitleResponse:
+    existing_title = conversation_service.get_title(req.session_id)
+    if existing_title:
+        return TitleResponse(
+            session_id=req.session_id,
+            title=existing_title,
+            generated=False,
+        )
+    
+    turn_count = conversation_service.get_turn_count(req.session_id)
+    if turn_count < 1:
+        return TitleResponse(
+            session_id=req.session_id,
+            title="新对话",
+            generated=False,
+        )
+    
+    history = conversation_service.get_history(req.session_id)
+    title = title_generator.generate(history)
+    
+    conversation_service.update_title(req.session_id, title)
+    
+    return TitleResponse(
+        session_id=req.session_id,
+        title=title,
+        generated=True,
+    )

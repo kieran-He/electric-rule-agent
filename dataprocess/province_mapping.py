@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import List
 
 PROVINCE_ALIASES: dict[str, str] = {
     "北京": "BJ",
     "天津": "TJ",
     "河北": "HE",
+    "冀南": "JN",
+    "冀北": "JB",
     "山西": "SX",
     "内蒙古": "NM",
+    "蒙西": "MX",
+    "蒙东": "MD",
     "辽宁": "LN",
     "吉林": "JL",
     "黑龙江": "HL",
@@ -34,9 +39,18 @@ PROVINCE_ALIASES: dict[str, str] = {
     "青海": "QH",
     "宁夏": "NX",
     "新疆": "XJ",
+    "全国": "QG",
 }
 
 PROVINCE_CODE_ALIASES: dict[str, str] = {code: name for name, code in PROVINCE_ALIASES.items()}
+
+PROVINCE_EXPANSION: dict[str, List[str]] = {
+    "NM": ["MX", "MD"],
+    "HE": ["JN", "JB"],
+    "HI": ["HAN"],
+    "HA": ["HEN"],
+    "HN": ["HUN"],
+}
 
 
 def detect_province_code(file_path: str | Path, file_name: str | None = None) -> str:

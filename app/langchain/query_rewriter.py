@@ -74,11 +74,14 @@ class QueryRewriter:
 省份映射（中文→代码）：
 山西=SX, 陕西=SN, 甘肃=GS, 山东=SD, 安徽=AH
 北京=BJ, 江苏=JS, 浙江=ZJ, 广东=GD, 四川=SC
-内蒙古=NM, 辽宁=LN, 吉林=JL, 黑龙江=HL
-福建=FJ, 江西=JX, 河南=HA, 湖北=HB, 湖南=HN
-广西=GX, 海南=HI, 重庆=CQ, 贵州=GZ, 云南=YN
+内蒙古=NM(蒙西MX,蒙东MD), 辽宁=LN, 吉林=JL, 黑龙江=HL
+福建=FJ, 江西=JX, 河南=HA(目录HEN), 湖北=HB, 湖南=HN(目录HUN)
+广西=GX, 海南=HI(目录HAN), 重庆=CQ, 贵州=GZ, 云南=YN
 西藏=XZ, 青海=QH, 宁夏=NX, 新疆=XJ, 天津=TJ
-河北=HE, 上海=SH
+河北=HE(冀南JN,冀北JB), 上海=SH
+全国=QG
+
+注意：某些省份有多个子区域，系统会自动扩展检索范围。
 
 输出JSON格式：
 {

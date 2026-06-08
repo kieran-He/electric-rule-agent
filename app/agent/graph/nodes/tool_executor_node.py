@@ -1,15 +1,21 @@
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from app.agent.graph.state import ElectricityAgentState
 from app.agent.graph.tools.tool_registry import ALL_TOOLS
 
 logger = logging.getLogger(__name__)
 
-# 信息充足判断阈值
+WEBSEARCH_TRIGGER_KEYWORDS = [
+    "最新", "最近", "新闻", "近期", "今天", "当前", "实时", "最新消息",
+    "网络搜索", "网上查", "搜索引擎", "搜索一下",
+]
+
 SUFFICIENCY_THRESHOLDS = {
-    "max_iterations_before_force_stop": 2,  # 强制停止的最大迭代次数
+    "policy_output_min_length": 1500,
+    "web_output_min_length": 500,
+    "max_iterations_before_force_stop": 2,
 }
 
 
@@ -156,8 +162,15 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     # 检查信息充足度
     all_tool_results = state.get("tool_results", []) + tool_results
     iteration_count = state.get("iteration_count", 0)
+    query = state.get("query", "")
+    missing_provinces = state.get("missing_provinces", [])
     
-    sufficiency_info = _check_sufficiency(all_tool_results, iteration_count)
+    sufficiency_info = _check_sufficiency(
+        all_tool_results, 
+        iteration_count,
+        query=query,
+        missing_provinces=missing_provinces,
+    )
     
     # 如果需要web_search，不认为信息充足
     if need_web_search:
@@ -191,24 +204,65 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
     return result
 
 
-def _check_sufficiency(tool_results: list, iteration_count: int) -> Dict[str, Any]:
+def _check_sufficiency(
+    tool_results: list, 
+    iteration_count: int,
+    query: str = "",
+    missing_provinces: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     """
     Check if the information collected is sufficient to answer the question.
     
     Returns:
         Dict with 'sufficient' bool and 'reason' string
     """
+    policy_length = 0
+    web_length = 0
+    data_available = False
     tools_used = set()
     
     for result in tool_results:
         if result.get("success"):
             tool_name = result.get("tool_name", "")
             tools_used.add(tool_name)
+            
+            output_len = len(result.get("output", ""))
+            if tool_name == "retrieve_policy":
+                policy_length += output_len
+            elif tool_name == "web_search":
+                web_length += output_len
+            elif tool_name == "fetch_electricity_data":
+                data_available = output_len > 0
+    
+    needs_websearch = any(kw in query for kw in WEBSEARCH_TRIGGER_KEYWORDS)
+    knowledge_missing = missing_provinces and len(missing_provinces) > 0
+    websearch_called = "web_search" in tools_used
+    
+    if (needs_websearch or knowledge_missing) and not websearch_called:
+        reasons = []
+        if needs_websearch:
+            reasons.append("查询需要时效性信息，需进行网络搜索")
+        if knowledge_missing:
+            reasons.append(f"知识库缺失省份信息: {missing_provinces}")
+        return {
+            "sufficient": False,
+            "reason": "; ".join(reasons),
+            "policy_length": policy_length,
+            "web_length": web_length,
+            "tools_used": list(tools_used),
+        }
     
     reasons = []
     
+    if policy_length >= SUFFICIENCY_THRESHOLDS["policy_output_min_length"]:
+        reasons.append(f"政策检索结果充足({policy_length}字符)")
+    
     if "retrieve_policy" in tools_used and "web_search" in tools_used:
         reasons.append("已完成政策检索和网络搜索")
+    
+    total_length = policy_length + web_length
+    if total_length >= 2000:
+        reasons.append(f"总信息量充足({total_length}字符)")
     
     if iteration_count >= SUFFICIENCY_THRESHOLDS["max_iterations_before_force_stop"]:
         reasons.append(f"已达到{iteration_count}轮迭代，建议生成答案")
@@ -231,7 +285,11 @@ def _update_state_data(state: ElectricityAgentState, tool_name: str, output: str
                 state["policy_chunks"] = result_data
             elif isinstance(result_data, dict) and "chunks" in result_data:
                 state["policy_chunks"] = result_data["chunks"]
-                
+                missing = result_data.get("missing_provinces", [])
+                if missing:
+                    state["missing_provinces"] = missing
+                    logger.info(f"[ToolExecutor] Missing provinces: {missing}")
+        
         elif tool_name == "fetch_electricity_data":
             state["electricity_data"] = result_data
             if isinstance(result_data, dict) and result_data.get("chart_path"):

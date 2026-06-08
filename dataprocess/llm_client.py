@@ -104,6 +104,18 @@ def call_llm_json(*, cfg: LLMConfig, system_prompt: str, user_prompt: str, max_r
 def _extract_json_object(text: str, cfg: LLMConfig | None = None) -> dict[str, Any]:
     stripped = text.strip()
     
+    # Handle MiniMax thinking content - find and remove <think>...</think> blocks
+    # The thinking block may contain reasoning before the actual JSON response
+    while True:
+        thinking_start = stripped.find("<think>")
+        thinking_end = stripped.find("</think>")
+        if thinking_start >= 0 and thinking_end > thinking_start:
+            # Remove the thinking block and everything before it
+            stripped = stripped[thinking_end + len("</think>"):].strip()
+        else:
+            break
+    
+    # Handle ```json blocks
     if stripped.startswith("```"):
         lines = stripped.split("\n")
         if lines[0].startswith("```json"):
@@ -124,6 +136,7 @@ def _extract_json_object(text: str, cfg: LLMConfig | None = None) -> dict[str, A
     if result is not None:
         return result
     
+    # Find JSON object in the remaining text
     start = stripped.find("{")
     end = stripped.rfind("}")
     if start >= 0 and end > start:

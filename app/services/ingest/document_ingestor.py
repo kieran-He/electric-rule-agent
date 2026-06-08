@@ -80,6 +80,26 @@ def _extract_policy_level(text: str) -> str:
     return "unknown"
 
 
+ISSUER_HINTS = {
+    "国家发展改革委": "国家发展改革委",
+    "国家能源局": "国家能源局",
+    "省发展改革委": "省发展改革委",
+    "省能源局": "省能源局",
+    "电力交易中心": "电力交易中心",
+    "交易中心": "交易中心",
+    "工业和信息化厅": "工业和信息化厅",
+    "发展和改革委员会": "发展和改革委员会",
+}
+
+
+def _extract_issuer(text: str) -> str | None:
+    sample = text[:800]
+    for keyword, issuer in ISSUER_HINTS.items():
+        if keyword in sample:
+            return issuer
+    return None
+
+
 def _text_quality_metrics(text: str) -> Dict[str, float]:
     if not text:
         return {"ch_ratio": 0.0, "replacement_ratio": 1.0, "readable_density": 0.0}
@@ -328,6 +348,7 @@ class DocumentIngestor:
             title = file.stem
             effective_date = _extract_effective_date(content)
             policy_level = _extract_policy_level(content)
+            issuer = _extract_issuer(content)
             for idx, chunk in enumerate(chunks):
                 all_chunks.append(chunk)
                 all_metas.append(
@@ -340,6 +361,7 @@ class DocumentIngestor:
                         "doc_title": title,
                         "effective_date": effective_date,
                         "policy_level": policy_level,
+                        "issuer": issuer or "",
                     }
                 )
             index[file_key] = file_hash

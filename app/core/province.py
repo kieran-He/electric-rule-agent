@@ -1,13 +1,17 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 
 PROVINCE_ALIASES: Dict[str, str] = {
     "北京": "BJ",
     "天津": "TJ",
     "河北": "HE",
+    "冀南": "JN",
+    "冀北": "JB",
     "山西": "SX",
     "内蒙古": "NM",
+    "蒙西": "MX",
+    "蒙东": "MD",
     "辽宁": "LN",
     "吉林": "JL",
     "黑龙江": "HL",
@@ -34,6 +38,15 @@ PROVINCE_ALIASES: Dict[str, str] = {
     "青海": "QH",
     "宁夏": "NX",
     "新疆": "XJ",
+    "全国": "QG",
+}
+
+PROVINCE_EXPANSION: Dict[str, List[str]] = {
+    "NM": ["MX", "MD"],
+    "HE": ["JN", "JB"],
+    "HI": ["HAN"],
+    "HA": ["HEN"],
+    "HN": ["HUN"],
 }
 
 

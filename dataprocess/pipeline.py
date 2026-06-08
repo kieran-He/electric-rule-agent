@@ -10,7 +10,7 @@ from dataprocess.docx_parser import parse_docx
 from dataprocess.llm_client import build_llm_config
 from dataprocess.llm_splitter import split_into_clauses_with_llm, _extract_rule_tags
 from dataprocess.llm_tagger import extract_rule_tags_with_llm, LLMTagCallError, LLMTagParseError
-from dataprocess.metadata_extractor import extract_metadata, file_sha256
+from dataprocess.metadata_extractor import extract_metadata, file_sha256, extract_issuer
 from dataprocess.pdf_parser import parse_pdf
 from dataprocess.schemas import (
     ClauseChunk,
@@ -18,6 +18,7 @@ from dataprocess.schemas import (
     ProcessedDocument,
     ProcessingStats,
     RawPage,
+    RuleTagExtraction,
 )
 
 
@@ -39,13 +40,7 @@ def apply_document_defaults_to_clauses(clauses: list[ClauseChunk], metadata: Doc
         clause.province_code = metadata.province_code
         clause.doc_type = metadata.doc_type
         clause.doc_status = metadata.status
-        clause.doc_market_type = metadata.market_type
-        clause.doc_subject_scope = list(metadata.subject_scope)
-
-        if not clause.rule_tags.market_type and metadata.market_type != "综合":
-            clause.rule_tags.market_type = metadata.market_type
-        if not clause.rule_tags.entity_type and metadata.subject_scope:
-            clause.rule_tags.entity_type = metadata.subject_scope[0]
+        clause.doc_issuer = metadata.issuer
 
 
 def build_processing_stats(clauses: list[ClauseChunk], total_pages: int) -> ProcessingStats:
@@ -177,41 +172,75 @@ def process_document(
     path = Path(file_path)
     
     file_hash = file_sha256(path)
-    metadata = extract_metadata(file_path=str(path), file_hash=file_hash, province_code_override=province_code_override)
-
     pages = _parse_pages(path)
+    total_pages = len(pages)
     marked_text = clean_document_pages_with_markers(pages)
+
+    metadata = extract_metadata(
+        file_path=str(path),
+        file_hash=file_hash,
+        province_code_override=province_code_override,
+        doc_text=marked_text[:500],
+    )
 
     llm_config = build_llm_config(cfg)
     
-    clauses = split_into_clauses_with_llm(
-        text=marked_text,
-        doc_name=metadata.doc_name,
-        source_file=str(path),
-        origin_doc_id=file_hash,
-        cfg=llm_config,
-        max_chars_per_call=cfg.llm_max_chars_per_call,
-        checkpoint_dir=checkpoint_dir,
-    )
-
     llm_tag_fallback_count = 0
     llm_tag_fallback_reasons: Counter[str] = Counter()
-    for clause in clauses:
-        try:
-            clause.rule_tags = extract_rule_tags_with_llm(text=clause.clause_text, cfg=llm_config)
-        except Exception as exc:
-            llm_tag_fallback_count += 1
-            llm_tag_fallback_reasons[type(exc).__name__] += 1
-            clause.rule_tags = _extract_rule_tags(clause.clause_text)
+
+    if total_pages > 100:
+        from process_pdf_rule_based import split_text_rule_based
+        raw_chunks = split_text_rule_based(marked_text, chunk_size=400, chunk_overlap=60)
+        clauses: list[ClauseChunk] = []
+        for i, chunk in enumerate(raw_chunks):
+            rule_tags = _extract_rule_tags(chunk["text"])
+            clause = ClauseChunk(
+                doc_name=metadata.doc_name,
+                source_file=str(path),
+                origin_doc_id=file_hash,
+                province_code=metadata.province_code,
+                doc_type=metadata.doc_type,
+                doc_status=metadata.status,
+                doc_issuer=metadata.issuer,
+                title_path=f"chunk_{i+1}",
+                clause_text=chunk["text"],
+                clause_summary=chunk["text"][:50] if len(chunk["text"]) > 50 else chunk["text"],
+                page_start=1,
+                page_end=total_pages,
+                token_count=max(1, len(chunk["text"]) // 2),
+                rule_tags=rule_tags,
+            )
+            clauses.append(clause)
+        processing_flags = ["baseline_plus", "rule_based_split", "rule_based_tag", f"pages_{total_pages}"]
+    else:
+        clauses = split_into_clauses_with_llm(
+            text=marked_text,
+            doc_name=metadata.doc_name,
+            source_file=str(path),
+            origin_doc_id=file_hash,
+            cfg=llm_config,
+            max_chars_per_call=cfg.llm_max_chars_per_call,
+            checkpoint_dir=checkpoint_dir,
+        )
+
+        for clause in clauses:
+            try:
+                clause.rule_tags = extract_rule_tags_with_llm(text=clause.clause_text, cfg=llm_config)
+            except Exception as exc:
+                llm_tag_fallback_count += 1
+                llm_tag_fallback_reasons[type(exc).__name__] += 1
+                clause.rule_tags = _extract_rule_tags(clause.clause_text)
+
+        processing_flags = ["baseline_plus", "llm_split", "llm_tag", "page_markers", f"pages_{total_pages}"]
 
     apply_document_defaults_to_clauses(clauses, metadata)
     clauses, quality_audit = enforce_clause_quality(
         clauses=clauses,
-        total_pages=len(pages),
+        total_pages=total_pages,
         short_fragment_threshold=short_fragment_threshold,
         drop_short_fragments=drop_short_fragments,
     )
-    stats = build_processing_stats(clauses=clauses, total_pages=len(pages))
+    stats = build_processing_stats(clauses=clauses, total_pages=total_pages)
 
     document = ProcessedDocument(
         metadata=metadata,
@@ -219,22 +248,23 @@ def process_document(
         clauses=clauses,
         stats=stats,
         ocr_used=False,
-        processing_flags=["baseline_plus", "llm_split", "llm_tag", "page_markers"],
+        processing_flags=processing_flags,
     )
     
     trace = {
         "pipeline": [
             "parse_pdf_or_docx",
             "clean_with_markers",
-            "split_into_clauses_with_llm",
-            "llm_tag_with_fallback",
+            "split_by_page_count",
+            "tag_with_fallback",
             "apply_document_defaults",
             "enforce_clause_quality",
             "build_stats",
         ],
         "input_summary": {
-            "total_pages": len(pages),
+            "total_pages": total_pages,
             "marked_text_chars": len(marked_text),
+            "split_method": "rule_based" if total_pages > 100 else "llm",
         },
         "llm_tag_fallback": {
             "fallback_count": llm_tag_fallback_count,

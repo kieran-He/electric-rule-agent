@@ -7,6 +7,26 @@ from pydantic import BaseModel, Field, ConfigDict
 from app.schemas.answer import CitationItem
 
 
+class BenchmarkQuestion(BaseModel):
+    question_id: str | None = None
+    question: str
+    category: str | None = None
+
+
+class BenchmarkResponse(BaseModel):
+    questions: List[BenchmarkQuestion]
+
+
+class TitleRequest(BaseModel):
+    session_id: str = Field(min_length=1, description="Session identifier")
+
+
+class TitleResponse(BaseModel):
+    session_id: str
+    title: str
+    generated: bool
+
+
 class AgentRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={

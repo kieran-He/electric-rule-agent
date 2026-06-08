@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Tuple
 import logging
 
 from app.core.repository import PolicyChunk, ChromaPolicyRepository
+from app.core.province import PROVINCE_EXPANSION
 from app.langchain.bm25_indexer import BM25Indexer
 from app.langchain.reranker_cache import reranker_cache, RERANKER_AVAILABLE
 from app.langchain.query_expander import QueryExpander
@@ -292,11 +293,20 @@ class HybridRetriever:
         if not all_province_codes:
             all_province_codes = set(province_codes)
         
+        expanded_codes = set()
+        for code in all_province_codes:
+            if code in PROVINCE_EXPANSION:
+                expanded_codes.update(PROVINCE_EXPANSION[code])
+                logger.info(f"[Retriever] Province expansion: {code} -> {PROVINCE_EXPANSION[code]}")
+            else:
+                expanded_codes.add(code)
+        
         supported = self._get_supported_provinces()
-        valid_codes = [c for c in all_province_codes if c in supported]
+        valid_codes = [c for c in expanded_codes if c in supported]
+        logger.info(f"[Retriever] Province validation: all={list(all_province_codes)}, expanded={list(expanded_codes)}, valid={valid_codes}, supported={len(supported)} provinces")
         if not valid_codes:
             valid_codes = province_codes
-            logger.warning(f"Detected provinces {list(all_province_codes)} not supported, using default: {province_codes}")
+            logger.warning(f"Detected provinces {list(all_province_codes)} (expanded: {list(expanded_codes)}) not supported, using default: {province_codes}")
         
         rerank_query = queries[0] if queries else query
         
@@ -311,11 +321,7 @@ class HybridRetriever:
         per_query_results: List[List[PolicyChunk]] = []
         original_queries_len = len(rewrite_result.queries)
         for i, q in enumerate(queries):
-            if i < original_queries_len:
-                qp = rewrite_result.queries[i]
-                query_province_codes = qp.province_codes or valid_codes
-            else:
-                query_province_codes = valid_codes
+            query_province_codes = valid_codes
             query_candidates = self._retrieve_with_embedding(q, query_province_codes, query_embeddings[q])
             per_query_results.append(query_candidates)
         logger.info(f"Retrieval completed in {time.time() - retrieve_start:.3f}s, {len(per_query_results)} query results")
