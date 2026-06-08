@@ -31,18 +31,16 @@ DOC_TYPE_HINTS = {
     "零售": "retail_rules",
 }
 
-MARKET_TYPE_HINTS = {
-    "中长期": "中长期",
-    "现货": "现货",
-    "零售": "零售",
-    "结算": "结算",
-    "计量": "计量",
-    "调频": "辅助服务",
-    "储能": "储能",
-    "虚拟电厂": "虚拟电厂",
+ISSUER_HINTS = {
+    "国家发展改革委": "国家发展改革委",
+    "国家能源局": "国家能源局",
+    "省发展改革委": "省发展改革委",
+    "省能源局": "省能源局",
+    "电力交易中心": "电力交易中心",
+    "交易中心": "交易中心",
+    "工业和信息化厅": "工业和信息化厅",
+    "发展和改革委员会": "发展和改革委员会",
 }
-
-SUBJECT_HINTS = ["售电公司", "批发用户", "虚拟电厂", "独立储能", "电网代理购电用户"]
 
 
 def file_sha256(path: str | Path) -> str:
@@ -62,19 +60,20 @@ def parse_date_from_name(name: str) -> date | None:
     return None
 
 
-def extract_year(name: str) -> int | None:
-    match = re.search(r"(20\d{2})", name)
-    return int(match.group(1)) if match else None
+def extract_issuer(text: str) -> str | None:
+    sample = text[:500]
+    for keyword, issuer in ISSUER_HINTS.items():
+        if keyword in sample:
+            return issuer
+    return None
 
 
-def extract_version_name(name: str) -> str | None:
-    match = re.search(r"(V\d+(?:\.\d+)?)|(\d{4}年\d{1,2}月修订版)|(\d{4}年修订版)", name)
-    if not match:
-        return None
-    return next(group for group in match.groups() if group)
-
-
-def extract_metadata(file_path: str, file_hash: str, province_code_override: str | None = None) -> DocumentMetadata:
+def extract_metadata(
+    file_path: str,
+    file_hash: str,
+    province_code_override: str | None = None,
+    doc_text: str | None = None,
+) -> DocumentMetadata:
     path = Path(file_path)
     stem = path.stem
 
@@ -90,30 +89,19 @@ def extract_metadata(file_path: str, file_hash: str, province_code_override: str
             doc_type = value
             break
 
-    market_type = "综合"
-    for hint, value in MARKET_TYPE_HINTS.items():
-        if hint in stem:
-            market_type = value
-            break
-
-    subject_scope = [subject for subject in SUBJECT_HINTS if subject in stem]
-
     detected_code = detect_province_code(file_path, stem)
     province_code = province_code_override or detected_code
+
+    issuer = extract_issuer(doc_text) if doc_text else None
 
     return DocumentMetadata(
         province_code=province_code,
         doc_name=stem,
         doc_type=doc_type,
-        market_type=market_type,
-        subject_scope=subject_scope,
-        version_name=extract_version_name(stem),
         status=status,
         issue_date=parse_date_from_name(stem),
         effective_date=None,
         source_file=str(path),
         file_hash=file_hash,
-        is_current=status != "draft",
-        parent_doc_id=None,
-        year=extract_year(stem),
+        issuer=issuer,
     )

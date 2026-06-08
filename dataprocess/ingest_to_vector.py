@@ -67,6 +67,7 @@ def _build_metadata(clause: ClauseChunk, document: ProcessedDocument) -> dict[st
         "title_path": (clause.title_path or "")[:500],
         "page_start": str(clause.page_start or ""),
         "page_end": str(clause.page_end or ""),
+        "issuer": document.metadata.issuer[:200] if document.metadata.issuer else "",
     }
 
 

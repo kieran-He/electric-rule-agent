@@ -25,6 +25,7 @@ class Document(Base):
     file_hash: Mapped[str] = mapped_column(String(128), unique=True, index=True)
     is_current: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     parent_doc_id: Mapped[int | None] = mapped_column(ForeignKey("document.id"), nullable=True)
+    issuer: Mapped[str | None] = mapped_column(String(256), nullable=True)
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

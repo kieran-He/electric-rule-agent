@@ -32,17 +32,12 @@ class DocumentMetadata(BaseModel):
     province_code: str = "SN"
     doc_name: str
     doc_type: str = "unknown"
-    market_type: str = "综合"
-    subject_scope: list[str] = Field(default_factory=list)
-    version_name: str | None = None
     status: DocumentStatus = "formal"
     issue_date: date | None = None
     effective_date: date | None = None
     source_file: str
     file_hash: str
-    is_current: bool = True
-    parent_doc_id: int | None = None
-    year: int | None = None
+    issuer: str | None = None
 
 
 class ClauseChunk(BaseModel):
@@ -52,8 +47,7 @@ class ClauseChunk(BaseModel):
     province_code: str = "SN"
     doc_type: str = "unknown"
     doc_status: DocumentStatus = "formal"
-    doc_market_type: str = "综合"
-    doc_subject_scope: list[str] = Field(default_factory=list)
+    doc_issuer: str | None = None
     chapter_no: str | None = None
     chapter_title: str | None = None
     section_no: str | None = None

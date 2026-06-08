@@ -51,6 +51,7 @@ class IngestService:
                     doc_type=row.doc_type,
                     status=row.status,
                     province_code=row.province_code,
+                    issuer=row.issuer,
                     version_name=row.version_name,
                     is_current=row.is_current,
                 )

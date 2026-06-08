@@ -50,16 +50,12 @@ class IngestionPipeline:
             province_code=meta.get("province_code", province_code),
             doc_name=meta.get("doc_name", ""),
             doc_type=meta.get("doc_type", "notice"),
-            market_type=meta.get("market_type"),
-            subject_scope=json.dumps(meta.get("subject_scope", [])) if meta.get("subject_scope") else None,
-            version_name=meta.get("version_name"),
             status=meta.get("status", "formal"),
             issue_date=meta.get("issue_date"),
             effective_date=meta.get("effective_date"),
             source_file=meta.get("source_file", str(json_path)),
             file_hash=file_hash,
-            is_current=meta.get("is_current", True),
-            parent_doc_id=None,
+            issuer=meta.get("issuer"),
             raw_text=data.get("cleaned_text"),
         )
         self.db.add(doc)
@@ -180,6 +176,7 @@ class IngestionPipeline:
             "title_path": (clause_data.get("title_path") or "")[:500],
             "page_start": str(clause_data.get("page_start") or ""),
             "page_end": str(clause_data.get("page_end") or ""),
+            "issuer": doc.issuer[:200] if doc.issuer else "",
         }
 
     def rebuild_vector_index(self) -> int:
@@ -219,4 +216,5 @@ class IngestionPipeline:
             "title_path": clause.title_path[:500] if clause.title_path else "",
             "page_start": str(clause.page_start or ""),
             "page_end": str(clause.page_end or ""),
+            "issuer": doc.issuer[:200] if doc.issuer else "",
         }

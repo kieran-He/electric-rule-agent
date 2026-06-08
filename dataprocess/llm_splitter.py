@@ -304,13 +304,13 @@ def split_into_clauses_with_llm(
         page_start_raw = unit.get("page_start")
         page_end_raw = unit.get("page_end")
 
-        if page_start_raw is not None:
-            page_start = int(page_start_raw)
+        if page_start_raw is not None and str(page_start_raw).strip():
+            page_start = int(str(page_start_raw).strip())
         else:
             page_start, _ = extract_page_range_from_text(content_raw)
 
-        if page_end_raw is not None:
-            page_end = int(page_end_raw)
+        if page_end_raw is not None and str(page_end_raw).strip():
+            page_end = int(str(page_end_raw).strip())
         else:
             _, page_end = extract_page_range_from_text(content_raw)
 
