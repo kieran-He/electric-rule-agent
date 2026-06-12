@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 
 from app.agent.graph.state import ElectricityAgentState
 from app.agent.graph.tools.tool_registry import ALL_TOOLS
+from app.core.province import PROVINCE_EXPANSION
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,15 @@ def tool_executor_node(state: ElectricityAgentState) -> Dict[str, Any]:
                                 need_web_search = True
                                 logger.info(f"[ToolExecutor] Low quality retrieval, suggesting web_search: {retrieval_quality}")
                         
-                        # 检测省份缺失：返回的 chunks 来自哪些省份，与请求的省份对比
-                        missing_provinces = [p for p in requested_provinces if p not in actual_province_codes]
+                        # 检测省份缺失：考虑省份扩展
+                        missing_provinces = []
+                        for p in requested_provinces:
+                            if p in PROVINCE_EXPANSION:
+                                expanded = PROVINCE_EXPANSION[p]
+                                if not any(e in actual_province_codes for e in expanded):
+                                    missing_provinces.append(p)
+                            elif p not in actual_province_codes:
+                                missing_provinces.append(p)
                         if missing_provinces:
                             need_web_search = True
                             logger.info(f"[ToolExecutor] Missing provinces detected: {missing_provinces}, actual: {actual_province_codes}, suggesting web_search")

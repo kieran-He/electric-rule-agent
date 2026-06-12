@@ -56,7 +56,6 @@ class IngestionPipeline:
             effective_date=meta.get("effective_date"),
             source_file=meta.get("source_file", str(json_path)),
             file_hash=file_hash,
-            issuer=meta.get("issuer"),
             raw_text=data.get("cleaned_text"),
         )
         self.db.add(doc)
@@ -170,7 +169,7 @@ class IngestionPipeline:
             "source_path": doc.source_file,
             "file_hash": doc.file_hash,
             "doc_title": doc.doc_name[:200] if doc.doc_name else "",
-            "issuer": doc.issuer or "",
+            "issuer": doc.issuer[:200] if doc.issuer else "",
             "issue_date": str(doc.issue_date or ""),
             "effective_date": str(doc.effective_date or ""),
             "policy_level": doc.status,
@@ -179,7 +178,6 @@ class IngestionPipeline:
             "title_path": (clause_data.get("title_path") or "")[:500],
             "page_start": str(clause_data.get("page_start") or ""),
             "page_end": str(clause_data.get("page_end") or ""),
-            "issuer": doc.issuer[:200] if doc.issuer else "",
         }
 
     def rebuild_vector_index(self) -> int:
@@ -212,7 +210,7 @@ class IngestionPipeline:
             "source_path": doc.source_file,
             "file_hash": doc.file_hash,
             "doc_title": doc.doc_name[:200] if doc.doc_name else "",
-            "issuer": doc.issuer or "",
+            "issuer": doc.issuer[:200] if doc.issuer else "",
             "issue_date": str(doc.issue_date or ""),
             "effective_date": str(doc.effective_date or ""),
             "policy_level": doc.status,
@@ -221,5 +219,4 @@ class IngestionPipeline:
             "title_path": clause.title_path[:500] if clause.title_path else "",
             "page_start": str(clause.page_start or ""),
             "page_end": str(clause.page_end or ""),
-            "issuer": doc.issuer[:200] if doc.issuer else "",
         }

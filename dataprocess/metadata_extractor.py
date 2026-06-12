@@ -67,7 +67,7 @@ def extract_version_name(name: str) -> str | None:
     return next(group for group in match.groups() if group)
 
 
-def extract_issuer_from_text(text: str) -> str | None:
+def extract_issuer(text: str) -> str | None:
     """Extract issuer from document content."""
     sample = text[:500]
     for keyword, issuer in ISSUER_HINTS.items():
@@ -126,7 +126,7 @@ def extract_metadata(
     detected_code = detect_province_code(file_path, stem)
     province_code = province_code_override or detected_code
 
-    issuer = extract_issuer_from_text(doc_text) if doc_text else extract_issuer_from_name(stem)
+    issuer = extract_issuer(doc_text) if doc_text else extract_issuer_from_name(stem)
 
     return DocumentMetadata(
         province_code=province_code,

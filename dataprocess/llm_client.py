@@ -104,27 +104,31 @@ def call_llm_json(*, cfg: LLMConfig, system_prompt: str, user_prompt: str, max_r
 def _extract_json_object(text: str, cfg: LLMConfig | None = None) -> dict[str, Any]:
     stripped = text.strip()
     
-    # Handle MiniMax thinking content - find and remove <think>...</think> blocks
-    # The thinking block may contain reasoning before the actual JSON response
+    # Handle MiniMax thinking content - remove all thinking blocks
+    # Format: thinking content wrapped in special markers
     while True:
-        thinking_start = stripped.find("<think>")
-        thinking_end = stripped.find("</think>")
+        thinking_start = stripped.find("<tool_call>")
+        thinking_end = stripped.find("daf")
         if thinking_start >= 0 and thinking_end > thinking_start:
-            # Remove the thinking block and everything before it
-            stripped = stripped[thinking_end + len("</think>"):].strip()
+            stripped = stripped[thinking_end + 3:].strip()
         else:
             break
     
-    # Handle ```json blocks
-    if stripped.startswith("```"):
-        lines = stripped.split("\n")
-        if lines[0].startswith("```json"):
-            lines = lines[1:]
-        elif lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        stripped = "\n".join(lines).strip()
+    # Handle ```json blocks - extract content between markers
+    if "```json" in stripped:
+        json_start = stripped.find("```json")
+        json_end = stripped.find("```", json_start + 7)
+        if json_end > json_start:
+            stripped = stripped[json_start + 7:json_end].strip()
+    elif "```" in stripped:
+        # Find content between ``` markers
+        first_marker = stripped.find("```")
+        second_marker = stripped.find("```", first_marker + 3)
+        if second_marker > first_marker:
+            stripped = stripped[first_marker + 3:second_marker].strip()
+            # Remove language indicator if present
+            if stripped.startswith("json"):
+                stripped = stripped[4:].strip()
     
     def try_parse_json(s: str) -> dict[str, Any] | None:
         try:
